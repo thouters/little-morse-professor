@@ -5,20 +5,20 @@
 #define DashTime 800
 #define ShortPauseTime 1000
 
-
+#ifdef AVR_ATmega88
 #define SW3 PIN_PC0
 #define GC1 PIN_PC1 
 #define GC2 PIN_PC2 
 #define GC3 PIN_PC3 
 #define GC4 PIN_PC4 
 #define GC5 PIN_PC5 
-#define ROW1 PIN_PD0
-#define ROW2 PIN_PD1
-#define ROW3 PIN_PD2
-#define ROW4 PIN_PD3
-#define ROW5 PIN_PD4 
-#define ROW6 PIN_PD5
-#define ROW7 PIN_PD6
+#define COLUMN1 PIN_PD0
+#define COLUMN2 PIN_PD1
+#define COLUMN3 PIN_PD2
+#define COLUMN4 PIN_PD3
+#define COLUMN5 PIN_PD4 
+#define COLUMN6 PIN_PD5
+#define COLUMN7 PIN_PD6
 #define SW4 PIN_PD7
 #define SW1 PIN_PB0 
 #define SPKR PIN_PB1 
@@ -28,10 +28,18 @@
 #define SCK_RC3 PIN_PB5 
 #define RC4 PIN_PB6
 #define RC5 PIN_PB7
+#else
+#define SW1 2 
+#define SW2 3
+#define SW4 4
+#define SW3 5
+#define SPKR 6 
+#endif
 
 enum State {
     ROOT,
     SHOW,
+    RECOGNISE,
     EXAM,
     MEMORIZE,
     PLAYBACK
@@ -56,18 +64,22 @@ public:
     virtual void setMorsePixel(bool on) = 0;
 };
 
-/* Render teh application state on a dot matrix display.
-* The display has 7 rows and 5 columns.
-* The physical device is built so that the vertical lines are the rows,
-* and the horizontal lines are columns (mindfuck)
-* so we will have vertical scanlines
+#ifdef AVR_ATmega88
+/* Render the application state on a dot matrix display.
+* The display has 7 columns and 5 rows.
+* Note that the schematic shows the display as 5 columns and 7 rows(mindfuck),
+* we will have vertical scanlines.
+* we will map all letters of the alphabet to one pixel, to be displayed horizontally,
+* from left to right, wrapping to the next line.
+* The bottom line is reserved to show a morse code pattern on the left
+* and pixels representing each state on the right side
 */
 class LedMatrixDisplay : public StateVisualizer {
 private:
     State currentState; // Stores the current state (enum)
     bool letters[26];   // Array to store the enabled state of each letter (A-Z)
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
-    uint8_t currentRow;
+    uint8_t currentColumn;
 public:
     // Constructor
     LedMatrixDisplay() : currentState(SHOW), morsePixelState(false) {
@@ -75,8 +87,7 @@ public:
         for (int i = 0; i < 26; i++) {
             letters[i] = false;
         }
-        currentRow = 0; // Initialize the current column
-
+        currentColumn = 0; // Initialize the current column
     }
 
     // Override setState to update the current state
@@ -98,22 +109,40 @@ public:
                 break;
         }
     }
-    void activateRow(uint8_t column) {
-        digitalWrite(ROW1, (column == 1)? HIGH:LOW);
-        digitalWrite(ROW2, (column == 2)? HIGH:LOW);
-        digitalWrite(ROW3, (column == 3)? HIGH:LOW);
-        digitalWrite(ROW4, (column == 4)? HIGH:LOW);
-        digitalWrite(ROW5, (column == 5)? HIGH:LOW);
-        digitalWrite(ROW6, (column == 6)? HIGH:LOW);
-        digitalWrite(ROW7, (column == 7)? HIGH:LOW);
+
+    void activateColumn(uint8_t column) {
+        digitalWrite(COLUMN1, (column == 1) ? HIGH : LOW);
+        digitalWrite(COLUMN2, (column == 2) ? HIGH : LOW);
+        digitalWrite(COLUMN3, (column == 3) ? HIGH : LOW);
+        digitalWrite(COLUMN4, (column == 4) ? HIGH : LOW);
+        digitalWrite(COLUMN5, (column == 5) ? HIGH : LOW);
+        digitalWrite(COLUMN6, (column == 6) ? HIGH : LOW);
+        digitalWrite(COLUMN7, (column == 7) ? HIGH : LOW);
     }
 
     // Render the current state on the LED matrix
     void renderState() override {
-        activateRow(currentRow); 
+        activateColumn(currentColumn); 
         digitalWrite(GC1, HIGH);
+        switch(currentColumn)
+        {
+            case 0:
+                digitalWrite(GC1, currentState == SHOW? HIGH: LOW);
+                digitalWrite(GC2, currentState == EXAM? HIGH: LOW);
+                digitalWrite(GC3, currentState == MEMORIZE? HIGH: LOW);
+                digitalWrite(GC4, currentState == PLAYBACK? HIGH: LOW);
+                digitalWrite(GC5, currentState == RECOGNISE? HIGH: LOW);
+                break;
+            default:
+                digitalWrite(GC1, LOW);
+                digitalWrite(GC2, LOW);
+                digitalWrite(GC3, LOW);
+                digitalWrite(GC4, LOW);
+                digitalWrite(GC5, LOW);
+                break;
+        }
 
-        currentRow = (currentRow + 1) % 7; // Cycle through columns
+        currentColumn = (currentColumn + 1) % 7; // Cycle through columns
     }
 
     // Override setLetter to update the enabled state of a letter
@@ -136,8 +165,85 @@ public:
     void setMorsePixel(bool on) override {
         morsePixelState = on; // Store the state of the Morse pixel
     }
-
 };
+#else
+
+class SerialDisplay : public StateVisualizer {
+private:
+    bool letters[26];   // Array to store the enabled state of each letter (A-Z)
+    State currentState; // Stores the current state (enum)
+    char currentLetter; // Stores the current letter
+    bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
+
+public:
+    // Constructor
+    SerialDisplay() : currentState(ROOT), currentLetter(' '), morsePixelState(false) {
+        Serial.begin(9600);
+    }
+
+    // Override setState to update the current state
+    void setState(State state) override {
+        currentState = state;
+        Serial.print("State changed to: ");
+        switch (currentState) {
+            case ROOT:
+                Serial.println("ROOT");
+                break;
+            case SHOW:
+                Serial.println("SHOW");
+                break;
+            case RECOGNISE:
+                Serial.println("RECOGNISE");
+                break;
+            case EXAM:
+                Serial.println("EXAM");
+                break;
+            case MEMORIZE:
+                Serial.println("MEMORIZE");
+                break;
+            case PLAYBACK:
+                Serial.println("PLAYBACK");
+                break;
+        }
+    }
+
+    // Override renderState to render the current state
+    void renderState() override {
+    }
+
+    // Override setLetter to update the current letter and its enabled state
+    void setLetter(char letter, bool enabled) override {
+        uint8_t letter_idx;
+        // Ensure the letter is uppercase
+        if (letter >= 'a' && letter <= 'z') {
+            letter_idx = (uint8_t)letter-'a'; // Convert to uppercase index
+        } else if (letter >= 'A' && letter <= 'Z') {
+            letter_idx = (uint8_t) letter-'A'; // Convert to index
+        } else {
+            Serial.println("Invalid letter. Must be A-Z or a-z.");
+            return;
+        }
+        if (letters[letter_idx] != enabled) {
+            Serial.print("Letter ");
+            Serial.print(currentLetter);
+            Serial.print(" is now ");
+            Serial.println(enabled ? "enabled" : "disabled");
+
+            // Update the corresponding index in the letters array
+            letters[letter_idx] = enabled;
+        }
+    }
+
+    // Override setMorsePixel to control the Morse pixel (on or off)
+    void setMorsePixel(bool on) override {
+        if (morsePixelState != on) {
+            Serial.print("Morse pixel is now ");
+            Serial.println(on ? "ON" : "OFF");
+            morsePixelState = on;
+        }
+    }
+};
+#endif //ifdef AVR_ATmega88
 
 enum EventType {
     ENTER,
@@ -295,6 +401,35 @@ private:
         }
     }
 
+    void handleRecognise(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+        switch (event) {
+            case ENTER:
+                Serial.println("RECOGNISE: ENTER event");
+                // Initialize any variables or state for RECOGNISE
+                break;
+            case EXIT:
+                Serial.println("RECOGNISE: EXIT event");
+                // Cleanup or finalize any state for RECOGNISE
+                break;
+            case TICK:
+                Serial.println("RECOGNISE: TICK event");
+                // Add logic for periodic updates in RECOGNISE state
+                break;
+            case BUTTONDOWN:
+                Serial.print("RECOGNISE: BUTTONDOWN event, Button: ");
+                Serial.println(buttonId);
+                // Add logic for button press in RECOGNISE state
+                break;
+            case BUTTONUP:
+                Serial.print("RECOGNISE: BUTTONUP event, Button: ");
+                Serial.print(buttonId);
+                Serial.print(", Time: ");
+                Serial.println(buttonTime);
+                // Add logic for button release in RECOGNISE state
+                break;
+        }
+    }
+
 public:
     // Constructor
     MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentState(ROOT), currentLetter('A'), currentLetterPattern(nullptr) {}
@@ -331,6 +466,9 @@ public:
                 break;
             case PLAYBACK:
                 handlePlayback(event, buttonId, buttonTime);
+                break;
+            case RECOGNISE: // New state
+                handleRecognise(event, buttonId, buttonTime);
                 break;
         }
     }
@@ -406,10 +544,14 @@ static bool previousButtonStates[4] = {false, false, false, false};
 static uint32_t buttonDownTimes[4] = {0, 0, 0, 0};
 
 void setup() {
-    Serial.begin(9600);
 
     // Create an instance of LedMatrixDisplay and pass it to MorseLittleProfessor
+
+#ifdef AVR_ATmega88
     visualizer = new LedMatrixDisplay();
+#else
+    visualizer = new SerialDisplay();
+#endif
     professor = new MorseLittleProfessor(*visualizer);
 
     // Set pin modes for SW1-SW4 as INPUT with pull-up resistors
@@ -417,6 +559,7 @@ void setup() {
     pinMode(SW2, INPUT_PULLUP);
     pinMode(SW3, INPUT_PULLUP);
     pinMode(SW4, INPUT_PULLUP);
+    visualizer->setState(SHOW);
 
 }
 
@@ -428,6 +571,7 @@ void loop() {
         digitalRead(SW3),
         digitalRead(SW4)
     };
+    visualizer->renderState();
 
     // Check for changes in button states
     for (int i = 0; i < 4; i++) {
