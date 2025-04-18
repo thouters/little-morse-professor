@@ -1,3 +1,4 @@
+// arduino ide builds all code in the folder, make it skip this Linux specific code
 #ifndef ARDUINO
 #include <iostream>
 #include <string>
@@ -12,7 +13,6 @@
 
 using namespace std;
 
-// Global instance of MorseLittleProfessor
 StateVisualizer* visualizer;
 MorseLittleProfessor* professor;
 

@@ -3,7 +3,11 @@
 #include "professor.cpp"
 
 
+#define NUMBER_OF_LETTERS (26)
 #ifdef __AVR_ATmega88__
+#define NUMBER_OF_COLUMNS (7)
+#define NUMBER_OF_ROWS (5)
+
 #define SW3 PIN_PC0
 #define ROW_GREEN_1 PIN_PC1 
 #define ROW_GREEN_2 PIN_PC2 
@@ -50,7 +54,7 @@
 class LedMatrixDisplay : public StateVisualizer {
 private:
     State currentState; // Stores the current state (enum)
-    bool letters[26];   // Array to store the enabled state of each letter (A-Z)
+    bool letters[NUMBER_OF_LETTERS];   // Array to store the enabled state of each letter (A-Z)
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
     uint8_t currentColumn;
     char *morsePattern; // Stores the current Morse pattern
@@ -59,7 +63,7 @@ public:
     // Constructor
     LedMatrixDisplay() : currentState(SHOW), morsePixelState(false), currentColumn(0), morsePattern(nullptr) {
         // Initialize all letters to false (disabled)
-        for (int i = 0; i < 26; i++) {
+        for (int i = 0; i < NUMBER_OF_LETTERS; i++) {
             letters[i] = false;
         }
         currentColumn = 0; // Initialize the current column
@@ -118,34 +122,39 @@ public:
 
     // Render the current state on the LED matrix
     void renderState(uint32_t Time) override {
-        activateColumn(currentColumn);
 
-        switch(currentState) {
-            case SHOW:
-                digitalWrite(ROW_GREEN_1, currentColumn == 4?HIGH:LOW);
-                break;
-            case RECOGNISE:
-                digitalWrite(ROW_GREEN_1, currentColumn == 5?HIGH:LOW);
-                break;
-            case EXAM:
-                digitalWrite(ROW_GREEN_1, currentColumn == 6?HIGH:LOW);
-                break;
-            case MEMORIZE:
-                digitalWrite(ROW_GREEN_1, currentColumn == 3?HIGH:LOW);
-                break;
-            case PLAYBACK:
-                digitalWrite(ROW_GREEN_1, currentColumn == 4?HIGH:LOW);
-                break;
+        activateColumn(0xff); // clear all columns
+        // layout of ROW 1-4 is to show all letters from the letters array
+        digitalWrite(ROW_GREEN_1, letters[currentColumn+0*NUMBER_OF_COLUMNS] ? HIGH : LOW);
+        digitalWrite(ROW_GREEN_2, letters[currentColumn+1*NUMBER_OF_COLUMNS] ? HIGH : LOW);
+        digitalWrite(ROW_GREEN_3, letters[currentColumn+2*NUMBER_OF_COLUMNS] ? HIGH : LOW);
+        if (currentColumn >= (NUMBER_OF_LETTERS-4*NUMBER_OF_COLUMNS)) {
+            // if the current column is out of bounds for the alphabet, turn off the row
+            digitalWrite(ROW_GREEN_4, LOW);
+        } else {
+            digitalWrite(ROW_GREEN_4, letters[currentColumn+3*NUMBER_OF_COLUMNS] ? HIGH : LOW);
         }
+        digitalWrite(ROW_GREEN_4, letters[currentColumn+3*NUMBER_OF_COLUMNS] ? HIGH : LOW);
+
         if (morsePattern && currentColumn < 5) {
             digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
             digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
-        } else {
-            digitalWrite(ROW_GREEN_5, LOW);
-            digitalWrite(ROW_RED_5, LOW);
-        
+        } 
+
+        // last row
+        switch(currentState) {
+            case SHOW:
+                digitalWrite(ROW_GREEN_5, currentColumn == 5?HIGH:LOW);
+                break;
+            case RECOGNISE:
+                digitalWrite(ROW_GREEN_5, currentColumn == 6?HIGH:LOW);
+                break;
+            case EXAM:
+                digitalWrite(ROW_GREEN_5, currentColumn == 7?HIGH:LOW);
+                break;
         }
-        digitalWrite(ROW_RED_3, (currentColumn == 6 && morsePixelState)? HIGH: LOW);
+        digitalWrite(ROW_RED_3, (currentColumn == 6 && morsePixelState)? HIGH: LOW); // FIXME
+        activateColumn(currentColumn);
         currentColumn = (currentColumn + 1) % 7; // Cycle through columns
     }
 
@@ -179,7 +188,7 @@ public:
 
 class SerialDisplay : public StateVisualizer {
 private:
-    bool letters[26];   // Array to store the enabled state of each letter (A-Z)
+    bool letters[NUMBER_OF_LETTERS];   // Array to store the enabled state of each letter (A-Z)
     State currentState; // Stores the current state (enum)
     char currentLetter; // Stores the current letter
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
