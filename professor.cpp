@@ -12,14 +12,14 @@ private:
     int currentPatternIndex = 0; // Index of the current symbol in the Morse pattern
 
     // State-specific handle methods
-    bool handleRoot(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+    bool handleRoot(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 break;
             case EXIT:
                 break;
             case TICK:
-                visualizer.renderState();
+                visualizer.renderState(Time);
                 return true;
             case BUTTONDOWN:
                 switch(buttonId )   {
@@ -38,7 +38,7 @@ private:
         return false;
     }
 
-    bool handleShow(EventType event, ButtonId buttonId, uint32_t Time) {
+    bool handleShow(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 currentLetter = 'A';
@@ -48,11 +48,11 @@ private:
             case EXIT:
                 break;
             case TICK:
-                if (updateMorsePixel(Time)) {
+                if (updateMorsePixel(buttonTime)) {
                     // pattern done, repeat it
                     lookupMorsePattern(); // Get the Morse pattern for the current letter
                 }
-                visualizer.renderState();
+                visualizer.renderState(Time);
                 return true;
             case BUTTONDOWN:
                 switch (buttonId) {
@@ -86,14 +86,14 @@ private:
         return false;
     }
 
-    bool handleExam(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+    bool handleExam(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 break;
             case EXIT:
                 break;
             case TICK:
-                visualizer.renderState();
+                visualizer.renderState(Time);
                 return true;
                 break;
             case BUTTONDOWN:
@@ -104,14 +104,14 @@ private:
         return false;
     }
 
-    bool handleMemorize(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+    bool handleMemorize(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 break;
             case EXIT:
                 break;
             case TICK:
-                visualizer.renderState();
+                visualizer.renderState(Time);
                 return true;
             case BUTTONDOWN:
                 break;
@@ -121,14 +121,14 @@ private:
         return false;
     }
 
-    bool handlePlayback(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+    bool handlePlayback(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 break;
             case EXIT:
                 break;
             case TICK:
-                visualizer.renderState();
+                visualizer.renderState(Time);
                 return true;
             case BUTTONDOWN:
                 break;
@@ -138,7 +138,7 @@ private:
         return false;
     }
 
-    bool handleRecognise(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+    bool handleRecognise(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 // Initialize any variables or state for RECOGNISE
@@ -163,43 +163,43 @@ public:
     // Set the current state
     void setState(State state, uint32_t Time) {
         // Trigger EXIT event for the current state
-        handle(EXIT, BUTTON1, Time);
+        handle(EXIT, BUTTON1, 0, Time);
 
         // Update the current state
         currentState = state;
 
         // Notify the visualizer of the state change
-        visualizer.setState(state, Time);
+        visualizer.setState(state);
 
         // Trigger ENTER event for the new state
-        handle(ENTER, BUTTON1, 0);
+        handle(ENTER, BUTTON1, 0, Time);
     }
 
     // General handle method
-    void handle(EventType event, ButtonId buttonId, uint32_t buttonTime) {
+    void handle(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         bool handled = false;
         switch (currentState) {
             case ROOT:
-                handled = handleRoot(event, buttonId, buttonTime);
+                handled = handleRoot(event, buttonId, buttonTime, Time);
                 break;
             case SHOW:
-                handled = handleShow(event, buttonId, buttonTime);
+                handled = handleShow(event, buttonId, buttonTime, Time);
                 break;
             case EXAM:
-                handled = handleExam(event, buttonId, buttonTime);
+                handled = handleExam(event, buttonId, buttonTime, Time);
                 break;
             case MEMORIZE:
-                handled = handleMemorize(event, buttonId, buttonTime);
+                handled = handleMemorize(event, buttonId, buttonTime, Time);
                 break;
             case PLAYBACK:
-                handled = handlePlayback(event, buttonId, buttonTime);
+                handled = handlePlayback(event, buttonId, buttonTime, Time);
                 break;
             case RECOGNISE: // New state
-                handled = handleRecognise(event, buttonId, buttonTime);
+                handled = handleRecognise(event, buttonId, buttonTime, Time);
                 break;
         }
         if (!handled) {
-            handled = handleRoot(event, buttonId, buttonTime);
+            handled = handleRoot(event, buttonId, buttonTime, Time);
         }
     }
 

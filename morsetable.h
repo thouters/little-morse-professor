@@ -1,7 +1,10 @@
 #ifndef MORSETABLE_H
 #define MORSETABLE_H
-
+#ifdef ARDUINO
 #include <avr/pgmspace.h> // Required for PROGMEM
+#else
+#define PROGMEM
+#endif
 
 // Define each Morse code string as a separate variable
 const char space[] PROGMEM = " ";
@@ -32,9 +35,9 @@ const char eight[] PROGMEM = "---..";
 const char nine[] PROGMEM = "----.";
 const char colon[] PROGMEM = "---...";
 const char semicolon[] PROGMEM = "-.-.-.";
-const char lessThan[] PROGMEM = "<";
+const char lessThan[] PROGMEM = " ";
 const char equals[] PROGMEM = "-...-";
-const char greaterThan[] PROGMEM = ">";
+const char greaterThan[] PROGMEM = " ";
 const char question[] PROGMEM = "..--..";
 const char at[] PROGMEM = ".--.-.";
 const char a[] PROGMEM = ".-";
@@ -131,7 +134,7 @@ const char* const morsecode_table[] PROGMEM = {
     y,           // 89 - Y
     z,           // 90 - Z
     leftBracket, // 91 - [
-    backslash,   // 92 - \
+    backslash,   // 92 - slash
     rightBracket,// 93 - ]
     caret,       // 94 - ^
     underscore,  // 95 - _

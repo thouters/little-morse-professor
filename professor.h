@@ -1,3 +1,6 @@
+#pragma once
+#include <stdint.h>
+#include <stdbool.h>
 #define DotTime 500
 #define DashTime 1000
 #define ShortPauseTime 500
@@ -40,7 +43,7 @@ public:
     virtual void setState(State state) = 0;
 
     // Method to render the current state
-    virtual void renderState() = 0;
+    virtual void renderState(uint32_t Time) = 0;
 
     // Method to set the current letter and its enabled state
     virtual void setLetter(char letter, bool enabled) = 0;

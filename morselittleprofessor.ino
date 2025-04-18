@@ -1,17 +1,15 @@
 #include "Arduino.h"
-#include "morsetable.h"
 
-#define DotTime 200
-#define DashTime 800
-#define ShortPauseTime 1000
+#include "professor.cpp"
 
-#ifdef AVR_ATmega88
+
+#ifdef __AVR_ATmega88__
 #define SW3 PIN_PC0
-#define GC1 PIN_PC1 
-#define GC2 PIN_PC2 
-#define GC3 PIN_PC3 
-#define GC4 PIN_PC4 
-#define GC5 PIN_PC5 
+#define ROW_GREEN_1 PIN_PC1 
+#define ROW_GREEN_2 PIN_PC2 
+#define ROW_GREEN_3 PIN_PC3 
+#define ROW_GREEN_4 PIN_PC4 
+#define ROW_GREEN_5 PIN_PC5 
 #define COLUMN1 PIN_PD0
 #define COLUMN2 PIN_PD1
 #define COLUMN3 PIN_PD2
@@ -23,12 +21,13 @@
 #define SW1 PIN_PB0 
 #define SPKR PIN_PB1 
 #define SW2 PIN_PB2
-#define MOSI_RC1 PIN_PB3
-#define MISO_RC2 PIN_PB4 
-#define SCK_RC3 PIN_PB5 
-#define RC4 PIN_PB6
-#define RC5 PIN_PB7
+#define ROW_RED_1 PIN_PB3
+#define ROW_RED_2 PIN_PB4 
+#define ROW_RED_3 PIN_PB5 
+#define ROW_RED_4 PIN_PB6
+#define ROW_RED_5 PIN_PB7
 #else
+// arduino uno using serial port as Display
 #define SW1 2 
 #define SW2 3
 #define SW4 4
@@ -36,35 +35,9 @@
 #define SPKR 6 
 #endif
 
-enum State {
-    ROOT,
-    SHOW,
-    RECOGNISE,
-    EXAM,
-    MEMORIZE,
-    PLAYBACK
-};
 
-// Abstract class to visualize the state of the application
-class StateVisualizer {
-public:
-    // Virtual destructor for proper cleanup of derived classes
-    virtual ~StateVisualizer() {}
 
-    // Method to set the state (enum values: show, exam, memorize, playback)
-    virtual void setState(State state) = 0;
-
-    // Method to render the current state
-    virtual void renderState() = 0;
-
-    // Method to set the current letter and its enabled state
-    virtual void setLetter(char letter, bool enabled) = 0;
-
-    // Method to set the Morse pixel (on or off)
-    virtual void setMorsePixel(bool on) = 0;
-};
-
-#ifdef AVR_ATmega88
+#ifdef __AVR_ATmega88__
 /* Render the application state on a dot matrix display.
 * The display has 7 columns and 5 rows.
 * Note that the schematic shows the display as 5 columns and 7 rows(mindfuck),
@@ -80,68 +53,99 @@ private:
     bool letters[26];   // Array to store the enabled state of each letter (A-Z)
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
     uint8_t currentColumn;
+    char *morsePattern; // Stores the current Morse pattern
+
 public:
     // Constructor
-    LedMatrixDisplay() : currentState(SHOW), morsePixelState(false) {
+    LedMatrixDisplay() : currentState(SHOW), morsePixelState(false), currentColumn(0), morsePattern(nullptr) {
         // Initialize all letters to false (disabled)
         for (int i = 0; i < 26; i++) {
             letters[i] = false;
         }
         currentColumn = 0; // Initialize the current column
+
+        pinMode(COLUMN1, OUTPUT);
+        pinMode(COLUMN2, OUTPUT);
+        pinMode(COLUMN3, OUTPUT);
+        pinMode(COLUMN4, OUTPUT);
+        pinMode(COLUMN5, OUTPUT);
+        pinMode(COLUMN6, OUTPUT);
+        pinMode(COLUMN7, OUTPUT);
+        pinMode(ROW_GREEN_1, OUTPUT);
+        pinMode(ROW_GREEN_2, OUTPUT);
+        pinMode(ROW_GREEN_3, OUTPUT);
+        pinMode(ROW_GREEN_4, OUTPUT);
+        pinMode(ROW_GREEN_5, OUTPUT);
+        pinMode(ROW_RED_1, OUTPUT);
+        pinMode(ROW_RED_2, OUTPUT);
+        pinMode(ROW_RED_3, OUTPUT);
+        pinMode(ROW_RED_4, OUTPUT);
+        pinMode(ROW_RED_5, OUTPUT);
+        digitalWrite(COLUMN1, LOW);
+        digitalWrite(COLUMN2, LOW);
+        digitalWrite(COLUMN3, LOW);
+        digitalWrite(COLUMN4, LOW);
+        digitalWrite(COLUMN5, LOW);
+        digitalWrite(COLUMN6, LOW);
+        digitalWrite(COLUMN7, LOW);
+        digitalWrite(ROW_GREEN_1, LOW);
+        digitalWrite(ROW_GREEN_2, LOW);
+        digitalWrite(ROW_GREEN_3, LOW);
+        digitalWrite(ROW_GREEN_4, LOW);
+        digitalWrite(ROW_GREEN_5, LOW);
+        digitalWrite(ROW_RED_1, LOW);
+        digitalWrite(ROW_RED_2, LOW);
+        digitalWrite(ROW_RED_3, LOW);
+        digitalWrite(ROW_RED_4, LOW);
+        digitalWrite(ROW_RED_5, LOW);
     }
 
     // Override setState to update the current state
     void setState(State state) override {
         currentState = state;
-        Serial.print("changing state: ");
-        switch (currentState) {
-            case SHOW:
-                Serial.println("SHOW");
-                break;
-            case EXAM:
-                Serial.println("EXAM");
-                break;
-            case MEMORIZE:
-                Serial.println("MEMORIZE");
-                break;
-            case PLAYBACK:
-                Serial.println("PLAYBACK");
-                break;
-        }
     }
 
     void activateColumn(uint8_t column) {
-        digitalWrite(COLUMN1, (column == 1) ? HIGH : LOW);
-        digitalWrite(COLUMN2, (column == 2) ? HIGH : LOW);
-        digitalWrite(COLUMN3, (column == 3) ? HIGH : LOW);
-        digitalWrite(COLUMN4, (column == 4) ? HIGH : LOW);
-        digitalWrite(COLUMN5, (column == 5) ? HIGH : LOW);
-        digitalWrite(COLUMN6, (column == 6) ? HIGH : LOW);
-        digitalWrite(COLUMN7, (column == 7) ? HIGH : LOW);
+        // reversed compared to schematic
+        digitalWrite(COLUMN1, (column == 6) ? HIGH : LOW);
+        digitalWrite(COLUMN2, (column == 5) ? HIGH : LOW);
+        digitalWrite(COLUMN3, (column == 4) ? HIGH : LOW);
+        digitalWrite(COLUMN4, (column == 3) ? HIGH : LOW);
+        digitalWrite(COLUMN5, (column == 2) ? HIGH : LOW);
+        digitalWrite(COLUMN6, (column == 1) ? HIGH : LOW);
+        digitalWrite(COLUMN7, (column == 0) ? HIGH : LOW);
     }
 
     // Render the current state on the LED matrix
-    void renderState() override {
-        activateColumn(currentColumn); 
-        digitalWrite(GC1, HIGH);
-        switch(currentColumn)
-        {
-            case 0:
-                digitalWrite(GC1, currentState == SHOW? HIGH: LOW);
-                digitalWrite(GC2, currentState == EXAM? HIGH: LOW);
-                digitalWrite(GC3, currentState == MEMORIZE? HIGH: LOW);
-                digitalWrite(GC4, currentState == PLAYBACK? HIGH: LOW);
-                digitalWrite(GC5, currentState == RECOGNISE? HIGH: LOW);
+    void renderState(uint32_t Time) override {
+        activateColumn(currentColumn);
+
+        switch(currentState) {
+            case SHOW:
+                digitalWrite(ROW_GREEN_1, currentColumn == 4?HIGH:LOW);
                 break;
-            default:
-                digitalWrite(GC1, LOW);
-                digitalWrite(GC2, LOW);
-                digitalWrite(GC3, LOW);
-                digitalWrite(GC4, LOW);
-                digitalWrite(GC5, LOW);
+            case RECOGNISE:
+                digitalWrite(ROW_GREEN_1, currentColumn == 5?HIGH:LOW);
+                break;
+            case EXAM:
+                digitalWrite(ROW_GREEN_1, currentColumn == 6?HIGH:LOW);
+                break;
+            case MEMORIZE:
+                digitalWrite(ROW_GREEN_1, currentColumn == 3?HIGH:LOW);
+                break;
+            case PLAYBACK:
+                digitalWrite(ROW_GREEN_1, currentColumn == 4?HIGH:LOW);
                 break;
         }
-
+        if (morsePattern && currentColumn < 5) {
+            digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
+            digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
+        } else {
+            digitalWrite(ROW_GREEN_5, LOW);
+            digitalWrite(ROW_RED_5, LOW);
+        
+        }
+        digitalWrite(ROW_RED_3, (currentColumn == 6 && morsePixelState)? HIGH: LOW);
         currentColumn = (currentColumn + 1) % 7; // Cycle through columns
     }
 
@@ -164,6 +168,11 @@ public:
     // Override setMorsePixel to control the Morse pixel (on or off)
     void setMorsePixel(bool on) override {
         morsePixelState = on; // Store the state of the Morse pixel
+    }
+
+    // Override setMorsePattern to set the Morse pattern
+    void setMorsePattern(const char *pattern) override {
+        morsePattern = pattern;
     }
 };
 #else
@@ -208,7 +217,7 @@ public:
     }
 
     // Override renderState to render the current state
-    void renderState() override {
+    void renderState(uint32_t Time) override {
     }
 
     // Override setLetter to update the current letter and its enabled state
@@ -242,298 +251,17 @@ public:
             morsePixelState = on;
         }
     }
+
+    // Override setMorsePattern to set the Morse pattern
+    void setMorsePattern(const char *pattern) override {
+        Serial.print("Morse pattern set to: ");
+        Serial.println(pattern);
+    }
 };
 #endif //ifdef AVR_ATmega88
 
-enum EventType {
-    ENTER,
-    EXIT,
-    TICK,
-    BUTTONDOWN,
-    BUTTONUP
-};
 
-enum ButtonId {
-    BUTTON1,
-    BUTTON2,
-    BUTTON3,
-    BUTTON4
-};
 
-class MorseLittleProfessor {
-private:
-    StateVisualizer& visualizer; // Reference to the StateVisualizer instance
-    State currentState;          // Current state of the application
-    char currentLetter;          // Current letter being processed
-    const char* currentLetterPattern; // Pointer to the Morse pattern for the current letter
-    uint32_t lastChangeTime = 0; // Time of the last change in Morse pixel state
-    bool morsePixelOn = false;   // State of the Morse pixel (on or off)
-    int currentPatternIndex = 0; // Index of the current symbol in the Morse pattern
-
-    // State-specific handle methods
-    void handleRoot(EventType event, ButtonId buttonId, uint32_t buttonTime) {
-        switch (event) {
-            case ENTER:
-                setState(SHOW);
-                break;
-            case EXIT:
-                Serial.println("ROOT: EXIT event");
-                break;
-            case TICK:
-                visualizer.renderState();
-                break;
-            case BUTTONDOWN:
-                Serial.println("ROOT: BUTTONDOWN event");
-                break;
-            case BUTTONUP:
-                Serial.println("ROOT: BUTTONUP event");
-                break;
-        }
-    }
-
-    void handleShow(EventType event, ButtonId buttonId, uint32_t Time) {
-        switch (event) {
-            case ENTER:
-                currentLetter = 'A';
-                lookupMorsePattern(); // Get the Morse pattern for the current letter
-                break;
-            case EXIT:
-                Serial.println("SHOW: EXIT event");
-                break;
-            case TICK:
-                if (updateMorsePixel(Time))
-                {
-                    lookupMorsePattern(); // Get the Morse pattern for the current letter
-                }
-                visualizer.renderState();
-                break;
-            case BUTTONDOWN:
-                switch (buttonId) {
-                    case BUTTON1:
-                        // Cycle through letters
-                        currentLetter++;
-                        if (currentLetter > 'Z') {
-                            currentLetter = 'A';
-                        }
-                        lookupMorsePattern(); // Update the Morse pattern for the new letter
-                        for (int i = 0; i < 26; i++) {
-                            if (i == currentLetter - 'A') {
-                                visualizer.setLetter(currentLetter, true);
-                            } else {
-                                visualizer.setLetter('A' + i, false);
-                            }
-                        }
-                        break;
-                    case BUTTON2:
-                        Serial.println("SHOW: BUTTON2 event");
-                        break;
-                    case BUTTON3:
-                        Serial.println("SHOW: BUTTON3 event");
-                        break;
-                    case BUTTON4:
-                        Serial.println("SHOW: BUTTON4 event");
-                        break;
-                }
-                break;
-            case BUTTONUP:
-                Serial.println("SHOW: BUTTONUP event");
-                break;
-        }
-    }
-
-    void handleExam(EventType event, ButtonId buttonId, uint32_t buttonTime) {
-        switch (event) {
-            case ENTER:
-                Serial.println("EXAM: ENTER event");
-                break;
-            case EXIT:
-                Serial.println("EXAM: EXIT event");
-                break;
-            case TICK:
-                visualizer.renderState();
-                break;
-            case BUTTONDOWN:
-                Serial.println("EXAM: BUTTONDOWN event");
-                break;
-            case BUTTONUP:
-                Serial.println("EXAM: BUTTONUP event");
-                break;
-        }
-    }
-
-    void handleMemorize(EventType event, ButtonId buttonId, uint32_t buttonTime) {
-        switch (event) {
-            case ENTER:
-                Serial.println("MEMORIZE: ENTER event");
-                break;
-            case EXIT:
-                Serial.println("MEMORIZE: EXIT event");
-                break;
-            case TICK:
-                visualizer.renderState();
-                break;
-            case BUTTONDOWN:
-                Serial.println("MEMORIZE: BUTTONDOWN event");
-                break;
-            case BUTTONUP:
-                Serial.println("MEMORIZE: BUTTONUP event");
-                break;
-        }
-    }
-
-    void handlePlayback(EventType event, ButtonId buttonId, uint32_t buttonTime) {
-        switch (event) {
-            case ENTER:
-                Serial.println("PLAYBACK: ENTER event");
-                break;
-            case EXIT:
-                Serial.println("PLAYBACK: EXIT event");
-                break;
-            case TICK:
-                visualizer.renderState();
-                break;
-            case BUTTONDOWN:
-                Serial.println("PLAYBACK: BUTTONDOWN event");
-                break;
-            case BUTTONUP:
-                Serial.println("PLAYBACK: BUTTONUP event");
-                break;
-        }
-    }
-
-    void handleRecognise(EventType event, ButtonId buttonId, uint32_t buttonTime) {
-        switch (event) {
-            case ENTER:
-                Serial.println("RECOGNISE: ENTER event");
-                // Initialize any variables or state for RECOGNISE
-                break;
-            case EXIT:
-                Serial.println("RECOGNISE: EXIT event");
-                // Cleanup or finalize any state for RECOGNISE
-                break;
-            case TICK:
-                Serial.println("RECOGNISE: TICK event");
-                // Add logic for periodic updates in RECOGNISE state
-                break;
-            case BUTTONDOWN:
-                Serial.print("RECOGNISE: BUTTONDOWN event, Button: ");
-                Serial.println(buttonId);
-                // Add logic for button press in RECOGNISE state
-                break;
-            case BUTTONUP:
-                Serial.print("RECOGNISE: BUTTONUP event, Button: ");
-                Serial.print(buttonId);
-                Serial.print(", Time: ");
-                Serial.println(buttonTime);
-                // Add logic for button release in RECOGNISE state
-                break;
-        }
-    }
-
-public:
-    // Constructor
-    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentState(ROOT), currentLetter('A'), currentLetterPattern(nullptr) {}
-
-    // Set the current state
-    void setState(State state) {
-        // Trigger EXIT event for the current state
-        handle(EXIT, BUTTON1, 0);
-
-        // Update the current state
-        currentState = state;
-
-        // Notify the visualizer of the state change
-        visualizer.setState(state);
-
-        // Trigger ENTER event for the new state
-        handle(ENTER, BUTTON1, 0);
-    }
-
-    // General handle method
-    void handle(EventType event, ButtonId buttonId, uint32_t buttonTime) {
-        switch (currentState) {
-            case ROOT:
-                handleRoot(event, buttonId, buttonTime);
-                break;
-            case SHOW:
-                handleShow(event, buttonId, buttonTime);
-                break;
-            case EXAM:
-                handleExam(event, buttonId, buttonTime);
-                break;
-            case MEMORIZE:
-                handleMemorize(event, buttonId, buttonTime);
-                break;
-            case PLAYBACK:
-                handlePlayback(event, buttonId, buttonTime);
-                break;
-            case RECOGNISE: // New state
-                handleRecognise(event, buttonId, buttonTime);
-                break;
-        }
-    }
-
-    // Method to look up the Morse pattern for the current letter
-    void lookupMorsePattern() {
-        if (currentLetter < 'A' || currentLetter > 'Z') {
-            Serial.println("Invalid letter for Morse lookup.");
-            currentLetterPattern = nullptr;
-            return;
-        }
-
-        // Calculate the index in the Morse table
-        int index = currentLetter - 'A' + 33; // Offset for ASCII table
-
-        // Read the pointer to the string from PROGMEM
-        const char* morsePtr = (const char*)pgm_read_ptr(&morsecode_table[index]);
-
-        // Copy the string from PROGMEM to a buffer
-        static char buffer[10]; // Temporary buffer to store the pattern
-        strcpy_P(buffer, morsePtr);
-        currentLetterPattern = buffer;
-
-        // Debug output
-        Serial.print("Morse pattern for ");
-        Serial.print(currentLetter);
-        Serial.print(": ");
-        Serial.println(currentLetterPattern);
-
-        currentPatternIndex = 0; // Reset the pattern index
-    }
-
-    // Method to update the Morse pixel based on the current pattern and time
-    bool updateMorsePixel(uint32_t newTime) {
-        if (!currentLetterPattern || currentLetterPattern[currentPatternIndex] == '\0') {
-            // No pattern or end of pattern, turn off the pixel
-            visualizer.setMorsePixel(false);
-            return;
-        }
-
-        if (morsePixelOn) {
-            // If the pixel is currently ON, check if it's time to turn it OFF
-            uint32_t duration = (currentLetterPattern[currentPatternIndex] == '-') ? DashTime : DotTime;
-            if (newTime - lastChangeTime >= duration) {
-                visualizer.setMorsePixel(false); // Turn off the pixel
-                morsePixelOn = false;
-                lastChangeTime = newTime;
-            }
-        } else {
-            // If the pixel is OFF, check if it's time to move to the next symbol or start a pause
-            if (newTime - lastChangeTime >= ShortPauseTime) {
-                // Move to the next symbol in the pattern
-                currentPatternIndex++;
-                if (currentLetterPattern[currentPatternIndex] != '\0') {
-                    // Turn the pixel ON for the next symbol
-                    visualizer.setMorsePixel(true);
-                    morsePixelOn = true;
-                    lastChangeTime = newTime;
-                    return true;
-                }
-            }
-        }
-        return false; // No change in state
-    }
-};
 
 // Global instance of MorseLittleProfessor
 StateVisualizer* visualizer;
@@ -545,9 +273,7 @@ static uint32_t buttonDownTimes[4] = {0, 0, 0, 0};
 
 void setup() {
 
-    // Create an instance of LedMatrixDisplay and pass it to MorseLittleProfessor
-
-#ifdef AVR_ATmega88
+#ifdef __AVR_ATmega88__
     visualizer = new LedMatrixDisplay();
 #else
     visualizer = new SerialDisplay();
@@ -560,43 +286,105 @@ void setup() {
     pinMode(SW3, INPUT_PULLUP);
     pinMode(SW4, INPUT_PULLUP);
     visualizer->setState(SHOW);
+#ifdef __AVR_ATmega88__
+    previousButtonStates[0] = digitalRead(SW1);
+    previousButtonStates[1] = digitalRead(SW2);
+    previousButtonStates[2] = digitalRead(SW3);
+    previousButtonStates[3] = digitalRead(SW4);
+#endif
 
 }
 
-void loop() {
-    // Array to store the current state of the buttons
-    bool currentButtonStates[4] = {
-        digitalRead(SW1),
-        digitalRead(SW2),
-        digitalRead(SW3),
-        digitalRead(SW4)
-    };
-    visualizer->renderState();
+bool serialbutton(int button) {
+    static uint32_t lastReceivedTime[4] = {0, 0, 0, 0}; // Tracks the last time a character was received for each button
+    char receivedChar;
+    uint32_t currentTime = millis();
 
-    // Check for changes in button states
-    for (int i = 0; i < 4; i++) {
-        if (currentButtonStates[i] != previousButtonStates[i]) {
-            // Determine the event type based on the button state change
-            EventType event = currentButtonStates[i] ? BUTTONDOWN : BUTTONUP;
-            if (event == BUTTONDOWN) {
-                professor->handle(BUTTONDOWN, static_cast<ButtonId>(i), 0);
-                // Record the time of the BUTTONDOWN event
-                buttonDownTimes[i] = millis();
-            } else {
-                // BUTTONUP event
-                uint32_t buttonTime = millis() - buttonDownTimes[i];
-                professor->handle(BUTTONUP, static_cast<ButtonId>(i), buttonTime);
+    // Check if a character is available on the serial port
+    if (Serial.available() > 0) {
+        receivedChar = Serial.read(); // Read the character from the serial port
+
+        // Update the last received time based on the character
+        switch (receivedChar) {
+            case 'A': // Button 0
+            case 'a': // Button 0
+                lastReceivedTime[0] = currentTime;
+                break;
+            case 'B': // Button 1
+            case 'b': // Button 1
+                lastReceivedTime[1] = currentTime;
+                break;
+            case 'C': // Button 2
+            case 'c': // Button 2
+                lastReceivedTime[2] = currentTime;
+                break;
+            case 'D': // Button 3
+            case 'd': // Button 3
+                lastReceivedTime[3] = currentTime;
+                break;
+        }
+    }
+
+    // Check if the button argument matches and if the last received time is within 400ms
+    if (currentTime - lastReceivedTime[button] <= 400) {
+        return true; // Button is considered pressed
+    }
+
+    return false; // Button is not pressed
+}
+
+uint32_t lastButtonScan;
+
+void loop() {
+    uint32_t now = millis();
+    // Array to store the current state of the but
+    if (now > lastButtonScan + 100)
+    {
+        bool currentButtonStates[4] = {
+#ifdef __AVR_ATmega88__
+            digitalRead(SW1),
+            digitalRead(SW2),
+            digitalRead(SW3),
+            digitalRead(SW4)
+#else
+            serialbutton(0),
+            serialbutton(1),
+            serialbutton(2),
+            serialbutton(3)
+#endif // ATmega88
+        };
+
+        // Check for changes in button states
+        for (int i = 0; i < 4; i++) {
+            if (currentButtonStates[i] != previousButtonStates[i]) {
+                // Determine the event type based on the button state change
+                EventType event = currentButtonStates[i] ? BUTTONDOWN : BUTTONUP;
+#ifndef __AVR_ATmega88__
+            Serial.print("Letter ");
+            Serial.print(i);
+            Serial.print(" is now ");
+            Serial.println(currentButtonStates[i]? "enabled" : "disabled");
+#endif
+                if (event == BUTTONDOWN) {
+                    professor->handle(BUTTONDOWN, static_cast<ButtonId>(i), 0, now);
+                    // Record the time of the BUTTONDOWN event
+                    buttonDownTimes[i] = now;
+                } else {
+                    // BUTTONUP event
+                    uint32_t buttonTime = now - buttonDownTimes[i];
+                    professor->handle(BUTTONUP, static_cast<ButtonId>(i), buttonTime, now);
+                }
             }
+        }
+
+        lastButtonScan = now;
+        // Update the previous button states
+        for (int i = 0; i < 4; i++) {
+            previousButtonStates[i] = currentButtonStates[i];
         }
     }
 
     // Call the handle method with the TICK event type
-    professor->handle(TICK, BUTTON1, millis());
+    professor->handle(TICK, BUTTON1, 0, now);
 
-    // Update the previous button states
-    for (int i = 0; i < 4; i++) {
-        previousButtonStates[i] = currentButtonStates[i];
-    }
-
-    delay(20); // 20ms delay
 }

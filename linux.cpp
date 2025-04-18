@@ -118,7 +118,7 @@ public:
     }
 
     // Override renderState to render the current state
-    void renderState() override {}
+    void renderState(uint32_t Time) override {}
 
     // Override setLetter to update the current letter and its enabled state
     void setLetter(char letter, bool enabled) override {
@@ -170,6 +170,7 @@ int main() {
     static chrono::steady_clock::time_point buttonDownTimes[4];
 
     while (true) {
+        uint32_t now = chrono::steady_clock::now().time_since_epoch().count();
         // Array to store the current state of the buttons
         bool currentButtonStates[4] = {
             serialbutton(0),
@@ -189,21 +190,21 @@ int main() {
                 cout << "Button " << i << (event == BUTTONDOWN ? " pressed" : " released") << endl;
                 
                 if (event == BUTTONDOWN) {
-                    professor->handle(BUTTONDOWN, static_cast<ButtonId>(i), 0);
+                    professor->handle(BUTTONDOWN, static_cast<ButtonId>(i), 0, now);
                     // Record the time of the BUTTONDOWN event
                     buttonDownTimes[i] = chrono::steady_clock::now();
                 } else {
                     // BUTTONUP event
                     uint32_t buttonTime = chrono::duration_cast<chrono::milliseconds>(
                         chrono::steady_clock::now() - buttonDownTimes[i]).count();
-                    professor->handle(BUTTONUP, static_cast<ButtonId>(i), buttonTime);
+                    professor->handle(BUTTONUP, static_cast<ButtonId>(i), buttonTime, now);
                 }
             }
         }
 
         // Call the handle method with the TICK event type
         professor->handle(TICK, BUTTON1, chrono::duration_cast<chrono::milliseconds>(
-            chrono::steady_clock::now().time_since_epoch()).count());
+            chrono::steady_clock::now().time_since_epoch()).count(), now);
 
         // Update the previous button states
         for (int i = 0; i < 4; i++) {
