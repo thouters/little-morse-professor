@@ -179,9 +179,6 @@ int main() {
             serialbutton(3)
         };
 
-        // Render the current state
-        visualizer->renderState();
-
         // Check for changes in button states
         for (int i = 0; i < 4; i++) {
             if (currentButtonStates[i] != previousButtonStates[i]) {
