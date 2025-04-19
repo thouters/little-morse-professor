@@ -44,6 +44,7 @@ private:
                 currentLetter = 'A';
                 lookupMorsePattern(); // Get the Morse pattern for the current letter
                 updateMorsePixel(Time);
+                visualizer.setLetter(currentLetter, true);
                 return true;
             case EXIT:
                 break;
