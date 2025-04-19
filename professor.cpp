@@ -24,7 +24,7 @@ private:
             case BUTTONDOWN:
                 switch(buttonId )   {
                     case BUTTON4:
-                        State nextState  = static_cast<State>((currentState + 1) % 4);
+                        State nextState  = static_cast<State>((currentState + 1) % 3);
                         if (nextState == ROOT) {
                             nextState = static_cast<State>(nextState + 1);
                         }
@@ -48,7 +48,7 @@ private:
             case EXIT:
                 break;
             case TICK:
-                if (updateMorsePixel(buttonTime)) {
+                if (updateMorsePixel(Time)) {
                     // pattern done, repeat it
                     lookupMorsePattern(); // Get the Morse pattern for the current letter
                 }

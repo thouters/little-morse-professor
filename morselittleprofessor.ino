@@ -128,32 +128,37 @@ public:
         digitalWrite(ROW_GREEN_1, letters[currentColumn+0*NUMBER_OF_COLUMNS] ? HIGH : LOW);
         digitalWrite(ROW_GREEN_2, letters[currentColumn+1*NUMBER_OF_COLUMNS] ? HIGH : LOW);
         digitalWrite(ROW_GREEN_3, letters[currentColumn+2*NUMBER_OF_COLUMNS] ? HIGH : LOW);
-        if (currentColumn >= (NUMBER_OF_LETTERS-4*NUMBER_OF_COLUMNS)) {
+        if (currentColumn >= NUMBER_OF_LETTERS - 3 * NUMBER_OF_COLUMNS) {
             // if the current column is out of bounds for the alphabet, turn off the row
             digitalWrite(ROW_GREEN_4, LOW);
         } else {
             digitalWrite(ROW_GREEN_4, letters[currentColumn+3*NUMBER_OF_COLUMNS] ? HIGH : LOW);
         }
-        digitalWrite(ROW_GREEN_4, letters[currentColumn+3*NUMBER_OF_COLUMNS] ? HIGH : LOW);
-
-        if (morsePattern && currentColumn < 5) {
-            digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
-            digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
-        } 
+        digitalWrite(ROW_RED_4, (currentColumn == 6 && morsePixelState)? HIGH: LOW); // FIXME
 
         // last row
-        switch(currentState) {
-            case SHOW:
-                digitalWrite(ROW_GREEN_5, currentColumn == 5?HIGH:LOW);
-                break;
-            case RECOGNISE:
-                digitalWrite(ROW_GREEN_5, currentColumn == 6?HIGH:LOW);
-                break;
-            case EXAM:
-                digitalWrite(ROW_GREEN_5, currentColumn == 7?HIGH:LOW);
-                break;
+        if (currentColumn < 4) {
+            if (morsePattern) {
+                digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
+                digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
+            } else {
+                digitalWrite(ROW_GREEN_5, LOW);
+                digitalWrite(ROW_RED_5, LOW);
+            }
+        }  else {
+            switch(currentState) {
+                case SHOW:
+                    digitalWrite(ROW_GREEN_5, currentColumn == 5?HIGH:LOW);
+                    break;
+                case RECOGNISE:
+                    digitalWrite(ROW_GREEN_5, currentColumn == 6?HIGH:LOW);
+                    break;
+                case EXAM:
+                    digitalWrite(ROW_GREEN_5, currentColumn == 7?HIGH:LOW);
+                    break;
+            }
+            digitalWrite(ROW_RED_5, LOW);
         }
-        digitalWrite(ROW_RED_3, (currentColumn == 6 && morsePixelState)? HIGH: LOW); // FIXME
         activateColumn(currentColumn);
         currentColumn = (currentColumn + 1) % 7; // Cycle through columns
     }
