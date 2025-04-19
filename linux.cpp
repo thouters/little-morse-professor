@@ -138,9 +138,9 @@ public:
     }
 
     // Override setMorsePixel to control the Morse pixel (on or off)
-    void setMorsePixel(bool on) override {
+    void setMorsePixel(bool on, int symbolIndex) override {
         if (morsePixelState != on) {
-            cout << "Morse pixel is now " << (on ? "ON" : "OFF") << endl;
+            cout << "Morse pixel is now " << (on ? "ON" : "OFF") << " for symbol index: " << symbolIndex << endl;
             morsePixelState = on;
         }
     }

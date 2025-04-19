@@ -49,7 +49,7 @@ public:
     virtual void setLetter(char letter, bool enabled) = 0;
 
     // Method to set the Morse pixel (on or off)
-    virtual void setMorsePixel(bool on) = 0;
+    virtual void setMorsePixel(bool on, int symbolIndex) = 0;
 
     // Method to set the Morse pattern
     virtual void setMorsePattern(const char *pattern) = 0;

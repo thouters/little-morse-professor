@@ -58,10 +58,11 @@ private:
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
     uint8_t currentColumn;
     char *morsePattern; // Stores the current Morse pattern
+    int symbolIndex;
 
 public:
     // Constructor
-    LedMatrixDisplay() : currentState(SHOW), morsePixelState(false), currentColumn(0), morsePattern(nullptr) {
+    LedMatrixDisplay() : currentState(SHOW), morsePixelState(false), currentColumn(0), morsePattern(nullptr), symbolIndex(-1) {
         // Initialize all letters to false (disabled)
         for (int i = 0; i < NUMBER_OF_LETTERS; i++) {
             letters[i] = false;
@@ -134,13 +135,18 @@ public:
         } else {
             digitalWrite(ROW_GREEN_4, letters[currentColumn+3*NUMBER_OF_COLUMNS] ? HIGH : LOW);
         }
-        digitalWrite(ROW_RED_4, (currentColumn == 6 && morsePixelState)? HIGH: LOW); // FIXME
+//        digitalWrite(ROW_RED_4, (currentColumn == 6 && morsePixelState)? HIGH: LOW); // FIXME
 
         // last row
         if (currentColumn < 4) {
             if (morsePattern) {
-                digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
-                digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
+                if (symbolIndex >=0 && morsePixelState && currentColumn == symbolIndex) {
+                    digitalWrite(ROW_GREEN_5, HIGH);
+                    digitalWrite(ROW_RED_5, HIGH);
+                } else {
+                    digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
+                    digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
+                }
             } else {
                 digitalWrite(ROW_GREEN_5, LOW);
                 digitalWrite(ROW_RED_5, LOW);
@@ -180,8 +186,10 @@ public:
     }
 
     // Override setMorsePixel to control the Morse pixel (on or off)
-    void setMorsePixel(bool on) override {
+    void setMorsePixel(bool on, int newSymbolIndex) override {
         morsePixelState = on; // Store the state of the Morse pixel
+        symbolIndex = newSymbolIndex;
+        // Add logic to handle symbolIndex if needed
     }
 
     // Override setMorsePattern to set the Morse pattern
@@ -258,12 +266,13 @@ public:
     }
 
     // Override setMorsePixel to control the Morse pixel (on or off)
-    void setMorsePixel(bool on) override {
+    void setMorsePixel(bool on, int symbolIndex) override {
         if (morsePixelState != on) {
             Serial.print("Morse pixel is now ");
             Serial.println(on ? "ON" : "OFF");
             morsePixelState = on;
         }
+        // Add logic to handle symbolIndex if needed
     }
 
     // Override setMorsePattern to set the Morse pattern

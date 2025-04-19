@@ -17,7 +17,7 @@ private:
             case ENTER:
                 break;
             case EXIT:
-                break;
+                return true;
             case TICK:
                 visualizer.renderState(Time);
                 return true;
@@ -37,13 +37,22 @@ private:
         }
         return false;
     }
+    void setOnlyLetter(char letter) {
+        for (char i = 'A'; i < 'Z'+1; i++) {
+            if (i == letter) {
+                visualizer.setLetter(letter, true);
+            } else {
+                visualizer.setLetter(i, false);
+            }
+        }
+    }
 
     bool handleShow(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 currentLetter = 'A';
-                lookupMorsePattern(); // Get the Morse pattern for the current letter
-                updateMorsePixel(Time);
+                lookupMorsePattern(); 
+                startMorsePattern(Time);
                 visualizer.setLetter(currentLetter, true);
                 return true;
             case EXIT:
@@ -52,6 +61,7 @@ private:
                 if (updateMorsePixel(Time)) {
                     // pattern done, repeat it
                     lookupMorsePattern(); // Get the Morse pattern for the current letter
+                    startMorsePattern(Time);
                 }
                 visualizer.renderState(Time);
                 return true;
@@ -65,13 +75,8 @@ private:
                             currentLetter = 'A';
                         }
                         lookupMorsePattern(); // Update the Morse pattern for the new letter
-                        for (char i = 'A'; i < 'Z'+1; i++) {
-                            if (i == currentLetter) {
-                                visualizer.setLetter(currentLetter, true);
-                            } else {
-                                visualizer.setLetter(i, false);
-                            }
-                        }
+                        startMorsePattern(Time);
+                        setOnlyLetter(currentLetter);
                         return true;
                     case BUTTON2:
                         break;
@@ -159,7 +164,10 @@ private:
 
 public:
     // Constructor
-    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentState(SHOW), currentLetter('A'), currentLetterPattern(nullptr) {}
+    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentState(ROOT), currentLetter('A'), currentLetterPattern(nullptr) {
+        // Initialize the visualizer
+        setState(SHOW, 0);
+    }
 
     // Set the current state
     void setState(State state, uint32_t Time) {
@@ -229,18 +237,20 @@ public:
 #endif
         visualizer.setMorsePattern(currentLetterPattern);
 
+    }
+    void startMorsePattern(uint32_t Time) {
+        lastChangeTime = Time;
         currentPatternIndex = 0; // Reset the pattern index
+        morsePixelOn = true; // Set the pixel to ON
+        visualizer.setMorsePixel(true, currentPatternIndex); // Turn on the pixel
 
-        // Turn the pixel ON for the next symbol
-        visualizer.setMorsePixel(true);
-        morsePixelOn = true;
     }
 
     // Method to update the Morse pixel based on the current pattern and time
     bool updateMorsePixel(uint32_t newTime) {
         if (!currentLetterPattern) {
             // No pattern, turn off the pixel
-            visualizer.setMorsePixel(false);
+            visualizer.setMorsePixel(false, currentPatternIndex); // Updated to pass symbolIndex
             return true;
         }
 
@@ -248,7 +258,7 @@ public:
             // If the pixel is currently ON, check if it's time to turn it OFF
             uint32_t duration = (currentLetterPattern[currentPatternIndex] == '-') ? DashTime : DotTime;
             if (newTime - lastChangeTime >= duration) {
-                visualizer.setMorsePixel(false); // Turn off the pixel
+                visualizer.setMorsePixel(false, currentPatternIndex); // Updated to pass symbolIndex
                 morsePixelOn = false;
                 lastChangeTime = newTime;
             }
@@ -260,7 +270,7 @@ public:
                     currentPatternIndex++;
                     if (currentLetterPattern[currentPatternIndex] != '\0') {
                         lastChangeTime = newTime;
-                        visualizer.setMorsePixel(true); // Turn on the pixel
+                        visualizer.setMorsePixel(true, currentPatternIndex); // Turn on the pixel
                         morsePixelOn = true;
                     }
                     lastChangeTime = newTime;
