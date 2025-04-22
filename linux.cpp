@@ -9,7 +9,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "professor.cpp"
+#include "professor.h"
+
 
 using namespace std;
 
@@ -162,6 +163,7 @@ int main() {
     visualizer = new SerialDisplay();
     professor = new MorseLittleProfessor(*visualizer);
 
+    professor->handle(ENTER, static_cast<ButtonId>(0), 0, 0);
     // Set the initial state
     visualizer->setState(SHOW);
 

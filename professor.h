@@ -59,3 +59,45 @@ public:
     // Method to set the Morse pattern
     virtual void setMorsePattern(const char *pattern) = 0;
 };
+
+class MorseLittleProfessor;
+
+class ShowState {
+private:
+    char currentLetter;          // Current letter being processed
+    MorseLittleProfessor* morseLittleProfessor = nullptr;
+public: 
+    bool handle(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time);
+    void begin(MorseLittleProfessor& pMorseLittleProfessor);
+    State parent();
+};
+
+class MorseLittleProfessor {
+private:
+    State currentState;          // Current state of the application
+    uint32_t lastChangeTime = 0; // Time of the last change in Morse pixel state
+    bool morsePixelOn = false;   // State of the Morse pixel (on or off)
+    int currentPatternIndex = 0; // Index of the current symbol in the Morse pattern
+    ShowState showState; // Instance of the ShowState class
+
+    // State-specific handle methods
+    bool handleRoot(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time);
+
+public:
+    StateVisualizer& visualizer; // Reference to the StateVisualizer instance
+    const char* currentLetterPattern; // Pointer to the Morse pattern for the current letter
+    // Constructor
+    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentState(ROOT), currentLetterPattern(nullptr) {
+        // Initialize the visualizer
+    }
+    void begin();
+    void lookupMorsePattern(char letter);
+    void setState(State state, uint32_t Time);
+
+    void handle(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time);
+
+    void startMorsePattern(uint32_t Time);
+    bool updateMorsePixel(uint32_t newTime) ;
+    void setOnlyLetter(char letter) ;
+
+};
