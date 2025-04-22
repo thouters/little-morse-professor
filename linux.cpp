@@ -105,8 +105,8 @@ public:
             case RECOGNISE:
                 cout << "RECOGNISE" << endl;
                 break;
-            case EXAM:
-                cout << "EXAM" << endl;
+            case QUIZ:
+                cout << "QUIZ" << endl;
                 break;
             case MEMORIZE:
                 cout << "MEMORIZE" << endl;

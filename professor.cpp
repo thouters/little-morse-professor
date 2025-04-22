@@ -67,8 +67,7 @@ private:
                 return true;
             case BUTTONDOWN:
                 switch (buttonId) {
-                    case BUTTON1:
-
+                    case BUTTON_SELECT_LETTER:
                         // Cycle through letters
                         currentLetter++;
                         if (currentLetter > 'Z') {
@@ -92,7 +91,10 @@ private:
         return false;
     }
 
-    bool handleExam(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
+    // the Quiz feature 
+    // When beginning the quiz, we enter the quizsetup state, in which the user selects apattern of letters. By pressing BUTTON1,
+    // the pattern can be changed. The user confirms by pressing BUTTON2. The quiz is then started.
+    bool handleQuizSetup(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
                 break;
@@ -103,6 +105,43 @@ private:
                 return true;
                 break;
             case BUTTONDOWN:
+                switch (buttonId) {
+                    case BUTTON_SELECT_LETTER:
+                    case BUTTON_CONFIRM_SKIP :
+                    case BUTTON_MODE_SELECT:
+                        break;
+                }
+                break;
+            case BUTTONUP:
+                break;
+        }
+        return false;
+    }
+
+    // The quiz is a simple game where the user has to key in the morse code of the letter shown on the display.
+    // The user can press BUTTON_MORSE_INPUT to enter the morse code, BUTTON_SKIP to skip the letter and BUTTON_MODE_SELECT to exit the quiz.
+    // When the user has entered the morse code, they should press BUTTON_CONFIRM. The program then checks if the pattern entered is correct. 
+    // If it is, the QuizCorrect state is entered, if it is not, the QuizIncorrect state is entered.
+    // in the QuizCorrect state the visualizer shows a green light.
+    // in the QuizIncorrect state, the visualizer shows a red light and shows the correct morse code pattern.
+    
+    bool handleQuizMain(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
+        switch (event) {
+            case ENTER:
+                break;
+            case EXIT:
+                break;
+            case TICK:
+                visualizer.renderState(Time);
+                return true;
+                break;
+            case BUTTONDOWN:
+                switch (buttonId) {
+                    case BUTTON_SELECT_LETTER:
+                    case BUTTON_SKIP:
+                    case BUTTON_MODE_SELECT:
+                        break;
+                }
                 break;
             case BUTTONUP:
                 break;
@@ -194,8 +233,8 @@ public:
             case SHOW:
                 handled = handleShow(event, buttonId, buttonTime, Time);
                 break;
-            case EXAM:
-                handled = handleExam(event, buttonId, buttonTime, Time);
+            case QUIZ:
+                handled = handleQuiz(event, buttonId, buttonTime, Time);
                 break;
             case MEMORIZE:
                 handled = handleMemorize(event, buttonId, buttonTime, Time);

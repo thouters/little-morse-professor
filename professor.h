@@ -15,11 +15,16 @@ enum EventType {
 };
 
 enum ButtonId {
-    BUTTON1,
-    BUTTON2,
-    BUTTON3,
-    BUTTON4
+    BUTTON1,    // letter selection button
+    BUTTON2,    // confirm/skip button
+    BUTTON3,    // morse code input button
+    BUTTON4     // mode selection button
 };
+#define BUTTON_SELECT_LETTER BUTTON1
+#define BUTTON_SKIP BUTTON1
+#define BUTTON_CONFIRM BUTTON2
+#define BUTTON_MORSE_INPUT BUTTON3
+#define BUTTON_MODE_SELECT BUTTON4
 
 
 
@@ -27,7 +32,7 @@ enum State {
     ROOT,
     SHOW,
     RECOGNISE,
-    EXAM,
+    QUIZ,
     MEMORIZE,
     PLAYBACK,
     MAX_STATE
@@ -39,7 +44,7 @@ public:
     // Virtual destructor for proper cleanup of derived classes
     virtual ~StateVisualizer() {}
 
-    // Method to set the state (enum values: show, exam, memorize, playback)
+    // Method to set the state (enum values: show, quiz, memorize, playback)
     virtual void setState(State state) = 0;
 
     // Method to render the current state

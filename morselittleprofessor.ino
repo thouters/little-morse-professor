@@ -141,8 +141,8 @@ public:
         if (currentColumn < 4) {
             if (morsePattern) {
                 if (symbolIndex >=0 && morsePixelState && currentColumn == symbolIndex) {
-                    digitalWrite(ROW_GREEN_5, HIGH);
-                    digitalWrite(ROW_RED_5, HIGH);
+                    digitalWrite(ROW_GREEN_5, LOW);
+                    digitalWrite(ROW_RED_5, LOW);
                 } else {
                     digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
                     digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
@@ -159,7 +159,7 @@ public:
                 case RECOGNISE:
                     digitalWrite(ROW_GREEN_5, currentColumn == 6?HIGH:LOW);
                     break;
-                case EXAM:
+                case QUIZ:
                     digitalWrite(ROW_GREEN_5, currentColumn == 7?HIGH:LOW);
                     break;
             }
@@ -226,8 +226,8 @@ public:
             case RECOGNISE:
                 Serial.println("RECOGNISE");
                 break;
-            case EXAM:
-                Serial.println("EXAM");
+            case QUIZ:
+                Serial.println("QUIZ");
                 break;
             case MEMORIZE:
                 Serial.println("MEMORIZE");
