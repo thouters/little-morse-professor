@@ -1,6 +1,15 @@
 #include "professor.h"
 #include "morsetable.h"
 
+#ifndef ARDUINO
+// long live printf debugging ^_^
+#include <termios.h>
+#include <unistd.h>
+#include <string.h>
+#include <iostream>
+using std::cout;
+using std::endl;
+#endif
 
 void MorseLittleProfessor::begin() {
     showState.begin(*this);
@@ -129,8 +138,8 @@ bool MorseLittleProfessor::updateMorsePixel(uint32_t newTime) {
 
     if (morsePixelOn) {
         // If the pixel is currently ON, check if it's time to turn it OFF
-        uint32_t duration = (currentLetterPattern[currentPatternIndex] == '-') ? DashTime : DotTime;
-        if (newTime - lastChangeTime >= duration) {
+        uint32_t onDuration = (currentLetterPattern[currentPatternIndex] == '-') ? DashTime : DotTime;
+        if (newTime - lastChangeTime >= onDuration) {
             visualizer.setMorsePixel(false, currentPatternIndex); // Updated to pass symbolIndex
             morsePixelOn = false;
             lastChangeTime = newTime;
@@ -228,7 +237,7 @@ bool ShowState::handle(const Event& event) {
     return false;
 }
 #if 0
-    // the Quiz feature 
+    // the Quiz feature
     // When beginning the quiz, we enter the quizsetup state, in which the user selects apattern of letters. By pressing BUTTON1,
     // the pattern can be changed. The user confirms by pressing BUTTON2. The quiz is then started.
     bool handleQuizSetup(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
@@ -257,11 +266,11 @@ bool ShowState::handle(const Event& event) {
 
     // The quiz is a simple game where the user has to key in the morse code of the letter shown on the display.
     // The user can press BUTTON_MORSE_INPUT to enter the morse code, BUTTON_SKIP to skip the letter and BUTTON_MODE_SELECT to exit the quiz.
-    // When the user has entered the morse code, they should press BUTTON_CONFIRM. The program then checks if the pattern entered is correct. 
+    // When the user has entered the morse code, they should press BUTTON_CONFIRM. The program then checks if the pattern entered is correct.
     // If it is, the QuizCorrect state is entered, if it is not, the QuizIncorrect state is entered.
     // in the QuizCorrect state the visualizer shows a green light.
     // in the QuizIncorrect state, the visualizer shows a red light and shows the correct morse code pattern.
-    
+
     bool handleQuizMain(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:

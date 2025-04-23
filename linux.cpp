@@ -171,7 +171,7 @@ int main() {
     static chrono::steady_clock::time_point buttonDownTimes[4];
 
     while (true) {
-        uint32_t now = chrono::steady_clock::now().time_since_epoch().count();
+        uint32_t now = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now().time_since_epoch()).count();
         // Array to store the current state of the buttons
         bool currentButtonStates[4] = {
             serialbutton(0),
@@ -185,12 +185,16 @@ int main() {
             if (currentButtonStates[i] == previousButtonStates[i]) {
                 continue;
             }
+            // FIXME: mixing steady_clock::now() and .time_since_epoch()???
+            uint32_t buttonTime = chrono::duration_cast<chrono::milliseconds>(
+                chrono::steady_clock::now() - buttonDownTimes[i]
+            ).count();
+
             // Create an Event based on the button state change
             Event event(currentButtonStates[i] ? Event::BUTTONDOWN : Event::BUTTONUP);
             event.data.buttonData = {
-                static_cast<ButtonId>(i), 
-                static_cast<uint32_t>( chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - buttonDownTimes[i]).count()), 
-                    //chrono::duration_cast<chrono::milliseconds>(buttonDownTimes[i].time_since_epoch()).count()
+                static_cast<ButtonId>(i),
+                buttonTime,
                 now
             };
 
@@ -198,7 +202,7 @@ int main() {
 
             professor->handle(event);
             buttonDownTimes[i] = chrono::steady_clock::now();
-        
+
         }
 
         // Create and handle a TICK event
@@ -213,7 +217,6 @@ int main() {
 
         // Delay for 20ms
         this_thread::sleep_for(chrono::milliseconds(20));
-        cout << "Tick" << endl;
 
     }
 
