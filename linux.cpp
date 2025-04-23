@@ -155,6 +155,7 @@ public:
     }
 };
 
+// Update the main loop to use the Event tagged union structure
 int main() {
     // Configure the terminal for non-blocking input
     configureTerminal();
@@ -163,9 +164,7 @@ int main() {
     visualizer = new SerialDisplay();
     professor = new MorseLittleProfessor(*visualizer);
 
-    professor->handle(ENTER, static_cast<ButtonId>(0), 0, 0);
-    // Set the initial state
-    visualizer->setState(SHOW);
+    professor->begin();
 
     // Static arrays to store the previous state of the buttons and the time of the last BUTTONDOWN event
     static bool previousButtonStates[4] = {false, false, false, false};
@@ -183,27 +182,29 @@ int main() {
 
         // Check for changes in button states
         for (int i = 0; i < 4; i++) {
-            if (currentButtonStates[i] != previousButtonStates[i]) {
-                // Determine the event type based on the button state change
-                EventType event = currentButtonStates[i] ? BUTTONDOWN : BUTTONUP;
-                cout << "Button " << i << (event == BUTTONDOWN ? " pressed" : " released") << endl;
-                
-                if (event == BUTTONDOWN) {
-                    professor->handle(BUTTONDOWN, static_cast<ButtonId>(i), 0, now);
-                    // Record the time of the BUTTONDOWN event
-                    buttonDownTimes[i] = chrono::steady_clock::now();
-                } else {
-                    // BUTTONUP event
-                    uint32_t buttonTime = chrono::duration_cast<chrono::milliseconds>(
-                        chrono::steady_clock::now() - buttonDownTimes[i]).count();
-                    professor->handle(BUTTONUP, static_cast<ButtonId>(i), buttonTime, now);
-                }
+            if (currentButtonStates[i] == previousButtonStates[i]) {
+                continue;
             }
+            // Create an Event based on the button state change
+            Event event(currentButtonStates[i] ? Event::BUTTONDOWN : Event::BUTTONUP);
+            event.data.buttonData = {
+                static_cast<ButtonId>(i), 
+                static_cast<uint32_t>( chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - buttonDownTimes[i]).count()), 
+                    //chrono::duration_cast<chrono::milliseconds>(buttonDownTimes[i].time_since_epoch()).count()
+                now
+            };
+
+            cout << "Button " << i << (event.type == Event::BUTTONDOWN ? " pressed" : " released") << endl;
+
+            professor->handle(event);
+            buttonDownTimes[i] = chrono::steady_clock::now();
+        
         }
 
-        // Call the handle method with the TICK event type
-        professor->handle(TICK, BUTTON1, chrono::duration_cast<chrono::milliseconds>(
-            chrono::steady_clock::now().time_since_epoch()).count(), now);
+        // Create and handle a TICK event
+        Event tickEvent(Event::TICK);
+        tickEvent.data.tickData = {now};
+        professor->handle(tickEvent);
 
         // Update the previous button states
         for (int i = 0; i < 4; i++) {
@@ -212,6 +213,8 @@ int main() {
 
         // Delay for 20ms
         this_thread::sleep_for(chrono::milliseconds(20));
+        cout << "Tick" << endl;
+
     }
 
     return 0;

@@ -6,20 +6,41 @@
 #define ShortPauseTime 500
 #define LongPauseTime 2000
 
-enum EventType {
-    ENTER,
-    EXIT,
-    TICK,
-    BUTTONDOWN,
-    BUTTONUP
-};
-
 enum ButtonId {
     BUTTON1,    // letter selection button
     BUTTON2,    // confirm/skip button
     BUTTON3,    // morse code input button
     BUTTON4     // mode selection button
 };
+// Define a tagged union for EventType with associated data
+struct Event {
+    enum Type {
+        ENTER,
+        EXIT,
+        TICK,
+        BUTTONDOWN,
+        BUTTONUP
+    } type;
+
+    union Data {
+        struct {
+            uint32_t time;
+        } tickData;
+
+        struct {
+            ButtonId buttonId;
+            uint32_t buttonTime;
+            uint32_t time;
+        } buttonData;
+
+        Data() {} // Default constructor
+        ~Data() {} // Destructor
+    } data;
+
+    Event(Type t) : type(t) {}
+};
+
+
 #define BUTTON_SELECT_LETTER BUTTON1
 #define BUTTON_SKIP BUTTON1
 #define BUTTON_CONFIRM BUTTON2
@@ -67,7 +88,7 @@ private:
     char currentLetter;          // Current letter being processed
     MorseLittleProfessor* morseLittleProfessor = nullptr;
 public: 
-    bool handle(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time);
+    bool handle(const Event& event);
     void begin(MorseLittleProfessor& pMorseLittleProfessor);
     State parent();
 };
@@ -80,8 +101,7 @@ private:
     int currentPatternIndex = 0; // Index of the current symbol in the Morse pattern
     ShowState showState; // Instance of the ShowState class
 
-    // State-specific handle methods
-    bool handleRoot(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time);
+    bool handleRoot(const Event& event);
 
 public:
     StateVisualizer& visualizer; // Reference to the StateVisualizer instance
@@ -94,7 +114,7 @@ public:
     void lookupMorsePattern(char letter);
     void setState(State state, uint32_t Time);
 
-    void handle(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time);
+    bool handle(const Event& event);
 
     void startMorsePattern(uint32_t Time);
     bool updateMorsePixel(uint32_t newTime) ;

@@ -1,6 +1,6 @@
 #include "Arduino.h"
 
-#include "professor.cpp"
+#include "professor.h"
 
 
 #define NUMBER_OF_LETTERS (26)
@@ -302,6 +302,7 @@ void setup() {
     visualizer = new SerialDisplay();
 #endif
     professor = new MorseLittleProfessor(*visualizer);
+    professor->begin();
 
     // Set pin modes for SW1-SW4 as INPUT with pull-up resistors
     pinMode(SW1, INPUT_PULLUP);
@@ -358,11 +359,11 @@ bool serialbutton(int button) {
 
 uint32_t lastButtonScan;
 
+// Replace EventType and its usage with the Event tagged union structure
+// Update the loop function to use the Event structure
 void loop() {
     uint32_t now = millis();
-    // Array to store the current state of the but
-    if (now > lastButtonScan + 100)
-    {
+    if (now > lastButtonScan + 100) {
         bool currentButtonStates[4] = {
 #ifdef __AVR_ATmega88__
             digitalRead(SW1),
@@ -374,40 +375,34 @@ void loop() {
             serialbutton(1),
             serialbutton(2),
             serialbutton(3)
-#endif // ATmega88
+#endif
         };
 
-        // Check for changes in button states
         for (int i = 0; i < 4; i++) {
             if (currentButtonStates[i] != previousButtonStates[i]) {
-                // Determine the event type based on the button state change
-                EventType event = currentButtonStates[i] ? BUTTONDOWN : BUTTONUP;
+                Event event(currentButtonStates[i] ? Event::BUTTONDOWN : Event::BUTTONUP);
+                event.data.buttonData = {static_cast<ButtonId>(i), buttonDownTimes[i], now};
+
 #ifndef __AVR_ATmega88__
-            Serial.print("Letter ");
-            Serial.print(i);
-            Serial.print(" is now ");
-            Serial.println(currentButtonStates[i]? "enabled" : "disabled");
+                Serial.print("Button ");
+                Serial.print(i);
+                Serial.print(" is now ");
+                Serial.println(currentButtonStates[i] ? "enabled" : "disabled");
 #endif
-                if (event == BUTTONDOWN) {
-                    professor->handle(BUTTONDOWN, static_cast<ButtonId>(i), 0, now);
-                    // Record the time of the BUTTONDOWN event
-                    buttonDownTimes[i] = now;
-                } else {
-                    // BUTTONUP event
-                    uint32_t buttonTime = now - buttonDownTimes[i];
-                    professor->handle(BUTTONUP, static_cast<ButtonId>(i), buttonTime, now);
-                }
+
+                event.data.buttonData.buttonTime = now - buttonDownTimes[i];
+                buttonDownTimes[i] = now;
+                professor->handle(event);
             }
         }
 
         lastButtonScan = now;
-        // Update the previous button states
         for (int i = 0; i < 4; i++) {
             previousButtonStates[i] = currentButtonStates[i];
         }
     }
 
-    // Call the handle method with the TICK event type
-    professor->handle(TICK, BUTTON1, 0, now);
-
+    Event tickEvent(Event::TICK);
+    tickEvent.data.tickData = {now};
+    professor->handle(tickEvent);
 }
