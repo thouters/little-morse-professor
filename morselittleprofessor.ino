@@ -53,12 +53,12 @@
 */
 class LedMatrixDisplay : public StateVisualizer {
 private:
-    State currentState; // Stores the current state (enum)
     bool letters[NUMBER_OF_LETTERS];   // Array to store the enabled state of each letter (A-Z)
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
     uint8_t currentColumn;
     char *morsePattern; // Stores the current Morse pattern
     int symbolIndex;
+    StateIndicator currentState; // Stores the current state (enum)
 
 public:
     // Constructor
@@ -106,7 +106,7 @@ public:
     }
 
     // Override setState to update the current state
-    void setState(State state) override {
+    void setState(StateIndicator state) override {
         currentState = state;
     }
 
@@ -359,7 +359,8 @@ bool serialbutton(int button) {
 
 uint32_t lastButtonScan;
 
-// Update the loop function to handle the new HandleResult structure
+// Replace EventType and its usage with the Event tagged union structure
+// Update the loop function to use the Event structure
 void loop() {
     uint32_t now = millis();
     if (now > lastButtonScan + 100) {
@@ -391,10 +392,7 @@ void loop() {
 
                 event.data.buttonData.buttonTime = now - buttonDownTimes[i];
                 buttonDownTimes[i] = now;
-                HandleResult result = professor->handle(event);
-                if (result.type == HandleResult::TRANSITION) {
-                    professor->setState(result.data.nextState, now);
-                }
+                professor->dispatch(event);
             }
         }
 
@@ -406,8 +404,5 @@ void loop() {
 
     Event tickEvent(Event::TICK);
     tickEvent.data.tickData = {now};
-    HandleResult result = professor->handle(tickEvent);
-    if (result.type == HandleResult::TRANSITION) {
-        professor->setState(result.data.nextState, now);
-    }
+    professor->dispatch(tickEvent);
 }
