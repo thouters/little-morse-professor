@@ -183,31 +183,8 @@ HandleResult_t ShowState::handle(Event& event) {
     // the Quiz feature
     // When beginning the quiz, we enter the quizsetup state, in which the user selects apattern of letters. By pressing BUTTON1,
     // the pattern can be changed. The user confirms by pressing BUTTON2. The quiz is then started.
-    bool handleQuizSetup(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
-        switch (event) {
-            case ENTER:
-                // Notify the visualizer of the state change
-                visualizer.setState(QUIZ);
-                break;
-            case EXIT:
-                break;
-            case TICK:
-                visualizer.renderState(Time);
-                return true;
-                break;
-            case BUTTONDOWN:
-                switch (buttonId) {
-                    case BUTTON_SELECT_LETTER:
-                    case BUTTON_CONFIRM_SKIP :
-                    case BUTTON_MODE_SELECT:
-                        break;
-                }
-                break;
-            case BUTTONUP:
-                break;
-        }
-        return HandleResult::parent();
-    }
+HandleResult_t QuizSetup::handle(Event& event) {
+}
 
     // The quiz is a simple game where the user has to key in the morse code of the letter shown on the display.
     // The user can press BUTTON_MORSE_INPUT to enter the morse code, BUTTON_SKIP to skip the letter and BUTTON_MODE_SELECT to exit the quiz.
@@ -216,83 +193,20 @@ HandleResult_t ShowState::handle(Event& event) {
     // in the QuizCorrect state the visualizer shows a green light.
     // in the QuizIncorrect state, the visualizer shows a red light and shows the correct morse code pattern.
 
-    bool handleQuizMain(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
-        switch (event) {
-            case ENTER:
-                break;
-            case EXIT:
-                break;
-            case TICK:
-                visualizer.renderState(Time);
-                return true;
-                break;
-            case BUTTONDOWN:
-                switch (buttonId) {
-                    case BUTTON_SELECT_LETTER:
-                    case BUTTON_SKIP:
-                    case BUTTON_MODE_SELECT:
-                        break;
-                }
-                break;
-            case BUTTONUP:
-                break;
-        }
-        return false;
-    }
+HandleResult_t QuizMain::handle(Event& event) {
+}
 
-    bool handleMemorize(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
-        switch (event) {
-            case ENTER:
-                break;
-            case EXIT:
-                break;
-            case TICK:
-                visualizer.renderState(Time);
-                return true;
-            case BUTTONDOWN:
-                break;
-            case BUTTONUP:
-                break;
-        }
-        return false;
-    }
+HandleResult_t Memorize::handle(Event& event) {
+}
 
-    bool handlePlayback(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
-        switch (event) {
-            case ENTER:
-                break;
-            case EXIT:
-                break;
-            case TICK:
-                visualizer.renderState(Time);
-                return true;
-            case BUTTONDOWN:
-                break;
-            case BUTTONUP:
-                break;
-        }
-        return false;
-    }
-
-    bool handleRecognise(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
-        switch (event) {
-            case ENTER:
-                // Initialize any variables or state for RECOGNISE
-                break;
-            case EXIT:
-                // Cleanup or finalize any state for RECOGNISE
-                break;
-            case TICK:
-                break;
-            case BUTTONDOWN:
-                break;
-            case BUTTONUP:
-                break;
-        }
-        return false;
-    }
-
+HandleResult_t Record::handle(Event& event) {
+}
+HandleResult_t Playback::handle(Event& event) {
+}
+HandleResult_t Recognise::handle(Event& event) {
+}
 #endif
+// this will become the parent state of the Quiz* states 
 HandleResult_t QuizState::handle(Event& event) {
     switch (event.type) {
         case Event::ENTER:
