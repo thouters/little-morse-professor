@@ -13,86 +13,28 @@ using std::endl;
 
 void MorseLittleProfessor::begin() {
     showState.begin(*this);
-    setState(SHOW, 0);
+    quizState.begin(*this);
+    currentState = this;
+    Event startEvent(Event::HSM_START);
+    dispatch(startEvent);
 }
 
-// Set the current state
-void MorseLittleProfessor::setState(State state, uint32_t Time) {
-    // Trigger EXIT event for the current state
-    if (currentState != ROOT) {
-        handle(Event(Event::EXIT));
-    }
-
-    // Update the current state
-    currentState = state;
-
-    // Notify the visualizer of the state change
-    visualizer.setState(state);
-
-    // Trigger ENTER event for the new state
-    handle(Event(Event::ENTER));
-}
-
-
-
-// Update the handle method to use the new Event structure
-bool MorseLittleProfessor::handle(const Event& event) {
-    bool handled = false;
-    switch (currentState) {
-        case ROOT:
-            if (event.type == Event::ENTER) {
-                begin();
-            } else {
-                handled = handleRoot(event);
-            }
-            break;
-        case SHOW:
-            handled = showState.handle(event);
-            break;
-        case QUIZ:
-            //handled = handleQuiz(event, buttonId, buttonTime, Time);
-            break;
-        case MEMORIZE:
-            //handled = handleMemorize(event, buttonId, buttonTime, Time);
-            break;
-        case PLAYBACK:
-            //handled = handlePlayback(event, buttonId, buttonTime, Time);
-            break;
-        case RECOGNISE: // New state
-            //handled = handleRecognise(event, buttonId, buttonTime, Time);
-            break;
-    }
-    if (!handled) {
-        handled = handleRoot(event);
-    }
-    return handled;
-}
-
-// Update handleRoot to use the new Event structure
-bool MorseLittleProfessor::handleRoot(const Event& event) {
+HandleResult_t MorseLittleProfessor::handle(Event& event) {
     switch (event.type) {
+        case Event::HSM_START:
         case Event::ENTER:
-            return true;
+            return HandleResult::transition(&showState);
         case Event::EXIT:
-            return true;
+            // should not happen
+            return HandleResult::handled();
         case Event::TICK:
             visualizer.renderState(event.data.tickData.time);
-            return true;
-        case Event::BUTTONDOWN:
-            switch (event.data.buttonData.buttonId) {
-                case BUTTON4:
-                    State nextState = static_cast<State>((currentState + 1) % 3);
-                    if (nextState == ROOT) {
-                        nextState = static_cast<State>(nextState + 1);
-                    }
-                    setState(nextState, event.data.buttonData.time);
-                    return true;
-            }
+            return HandleResult::handled();
             break;
         case Event::BUTTONUP:
             break;
     }
-    return false;
+    return HandleResult::parent();
 }
 
 // Method to look up the Morse pattern for the current letter
@@ -183,33 +125,34 @@ void MorseLittleProfessor::setOnlyLetter(char letter) {
 void ShowState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
     morseLittleProfessor = &pMorseLittleProfessor;
 }
-State ShowState::parent(void) {
-    return ROOT;
+void QuizState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
+    morseLittleProfessor = &pMorseLittleProfessor;
 }
 
 
-
-bool ShowState::handle(const Event& event) {
+HandleResult_t ShowState::handle(Event& event) {
     switch (event.type) {
         case Event::ENTER:
             currentLetter = 'A';
+            // Notify the visualizer of the state change
+            morseLittleProfessor->visualizer.setState(SHOW);
             morseLittleProfessor->lookupMorsePattern(currentLetter);
 
             morseLittleProfessor->visualizer.setMorsePattern(morseLittleProfessor->currentLetterPattern);
             morseLittleProfessor->startMorsePattern(event.data.tickData.time);
             morseLittleProfessor->visualizer.setLetter(currentLetter, true);
-            return true;
+            return HandleResult::handled();
         case Event::EXIT:
             break;
         case Event::TICK:
-            if (morseLittleProfessor->updateMorsePixel(event.data.tickData.time)) {
+            if (morseLittleProfessor->currentLetterPattern  && morseLittleProfessor->updateMorsePixel(event.data.tickData.time)) {
                 // pattern done, repeat it
                 morseLittleProfessor->lookupMorsePattern(currentLetter); // Get the Morse pattern for the current letter
                 morseLittleProfessor->visualizer.setMorsePattern(morseLittleProfessor->currentLetterPattern);
                 morseLittleProfessor->startMorsePattern(event.data.tickData.time);
             }
             morseLittleProfessor->visualizer.renderState(event.data.tickData.time);
-            return true;
+            return HandleResult::handled();
         case Event::BUTTONDOWN:
             switch (event.data.buttonData.buttonId) {
                 case BUTTON_SELECT_LETTER:
@@ -222,19 +165,19 @@ bool ShowState::handle(const Event& event) {
                     morseLittleProfessor->visualizer.setMorsePattern(morseLittleProfessor->currentLetterPattern);
                     morseLittleProfessor->startMorsePattern(event.data.buttonData.time);
                     morseLittleProfessor->setOnlyLetter(currentLetter);
-                    return true;
+                    return HandleResult::handled();
+                case BUTTON4:
+                    return HandleResult::transition(&morseLittleProfessor->quizState);
                 case BUTTON2:
                     break;
                 case BUTTON3:
-                    break;
-                case BUTTON4:
                     break;
             }
             break;
         case Event::BUTTONUP:
             break;
     }
-    return false;
+    return HandleResult::parent();
 }
 #if 0
     // the Quiz feature
@@ -243,6 +186,8 @@ bool ShowState::handle(const Event& event) {
     bool handleQuizSetup(EventType event, ButtonId buttonId, uint32_t buttonTime, uint32_t Time) {
         switch (event) {
             case ENTER:
+                // Notify the visualizer of the state change
+                visualizer.setState(QUIZ);
                 break;
             case EXIT:
                 break;
@@ -261,7 +206,7 @@ bool ShowState::handle(const Event& event) {
             case BUTTONUP:
                 break;
         }
-        return false;
+        return HandleResult::parent();
     }
 
     // The quiz is a simple game where the user has to key in the morse code of the letter shown on the display.
@@ -348,3 +293,19 @@ bool ShowState::handle(const Event& event) {
     }
 
 #endif
+HandleResult_t QuizState::handle(Event& event) {
+    switch (event.type) {
+        case Event::ENTER:
+            morseLittleProfessor->visualizer.setState(QUIZ);
+            return HandleResult::handled();
+        case Event::BUTTONDOWN:
+            switch (event.data.buttonData.buttonId) {
+                case BUTTON4:
+                    return HandleResult::transition(&morseLittleProfessor->showState);
+                break;
+            }
+            break;
+    }
+    return HandleResult::parent();
+}
+

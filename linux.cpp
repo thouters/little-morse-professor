@@ -83,7 +83,7 @@ cout << endl;
 class SerialDisplay : public StateVisualizer {
 private:
     bool letters[26];   // Array to store the enabled state of each letter (A-Z)
-    State currentState; // Stores the current state (enum)
+    StateIndicator currentState; // Stores the current state (enum)
     char currentLetter; // Stores the current letter
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
     string morsePattern; // Stores the current Morse pattern
@@ -93,7 +93,7 @@ public:
     SerialDisplay() : currentState(ROOT), currentLetter(' '), morsePixelState(false) {}
 
     // Override setState to update the current state
-    void setState(State state) override {
+    void setState(StateIndicator state) override {
         currentState = state;
         cout << "State changed to: ";
         switch (currentState) {
@@ -185,7 +185,6 @@ int main() {
             if (currentButtonStates[i] == previousButtonStates[i]) {
                 continue;
             }
-            // FIXME: mixing steady_clock::now() and .time_since_epoch()???
             uint32_t buttonTime = chrono::duration_cast<chrono::milliseconds>(
                 chrono::steady_clock::now() - buttonDownTimes[i]
             ).count();
@@ -193,22 +192,22 @@ int main() {
             // Create an Event based on the button state change
             Event event(currentButtonStates[i] ? Event::BUTTONDOWN : Event::BUTTONUP);
             event.data.buttonData = {
-                static_cast<ButtonId>(i),
+                static_cast<ButtonId>(i), 
                 buttonTime,
                 now
             };
 
             cout << "Button " << i << (event.type == Event::BUTTONDOWN ? " pressed" : " released") << endl;
 
-            professor->handle(event);
+            professor->dispatch(event);
             buttonDownTimes[i] = chrono::steady_clock::now();
-
+        
         }
 
         // Create and handle a TICK event
         Event tickEvent(Event::TICK);
         tickEvent.data.tickData = {now};
-        professor->handle(tickEvent);
+        professor->dispatch(tickEvent);
 
         // Update the previous button states
         for (int i = 0; i < 4; i++) {

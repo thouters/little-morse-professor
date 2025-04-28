@@ -1,44 +1,11 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include "hsm.h"
 #define DotTime 500
 #define DashTime 1000
 #define ShortPauseTime 500
 #define LongPauseTime 2000
-
-enum ButtonId {
-    BUTTON1,    // letter selection button
-    BUTTON2,    // confirm/skip button
-    BUTTON3,    // morse code input button
-    BUTTON4     // mode selection button
-};
-// Define a tagged union for EventType with associated data
-struct Event {
-    enum Type {
-        ENTER,
-        EXIT,
-        TICK,
-        BUTTONDOWN,
-        BUTTONUP
-    } type;
-
-    union Data {
-        struct {
-            uint32_t time;
-        } tickData;
-
-        struct {
-            ButtonId buttonId;
-            uint32_t buttonTime;
-            uint32_t time;
-        } buttonData;
-
-        Data() {} // Default constructor
-        ~Data() {} // Destructor
-    } data;
-
-    Event(Type t) : type(t) {}
-};
 
 
 #define BUTTON_SELECT_LETTER BUTTON1
@@ -49,7 +16,7 @@ struct Event {
 
 
 
-enum State {
+enum StateIndicator {
     ROOT,
     SHOW,
     RECOGNISE,
@@ -59,6 +26,7 @@ enum State {
     MAX_STATE
 };
 
+
 // Abstract class to visualize the state of the application
 class StateVisualizer {
 public:
@@ -66,7 +34,7 @@ public:
     virtual ~StateVisualizer() {}
 
     // Method to set the state (enum values: show, quiz, memorize, playback)
-    virtual void setState(State state) = 0;
+    virtual void setState(StateIndicator state) = 0;
 
     // Method to render the current state
     virtual void renderState(uint32_t Time) = 0;
@@ -83,41 +51,45 @@ public:
 
 class MorseLittleProfessor;
 
-class ShowState {
+class ShowState: public HsmState {
 private:
     char currentLetter;          // Current letter being processed
     MorseLittleProfessor* morseLittleProfessor = nullptr;
 public: 
-    bool handle(const Event& event);
     void begin(MorseLittleProfessor& pMorseLittleProfessor);
-    State parent();
+    HandleResult_t handle(Event& event);
 };
 
-class MorseLittleProfessor {
+class QuizState: public HsmState {
 private:
-    State currentState;          // Current state of the application
+    char currentLetter;          // Current letter being processed
+    MorseLittleProfessor* morseLittleProfessor = nullptr;
+public: 
+    void begin(MorseLittleProfessor& pMorseLittleProfessor);
+    HandleResult_t handle(Event& event);
+};
+
+// both the Hsm rootstate and statemachine at once.
+class MorseLittleProfessor : public Hsm, public HsmState {
+private:
     uint32_t lastChangeTime = 0; // Time of the last change in Morse pixel state
     bool morsePixelOn = false;   // State of the Morse pixel (on or off)
     int currentPatternIndex = 0; // Index of the current symbol in the Morse pattern
-    ShowState showState; // Instance of the ShowState class
-
-    bool handleRoot(const Event& event);
 
 public:
+    ShowState showState; 
+    QuizState quizState; 
     StateVisualizer& visualizer; // Reference to the StateVisualizer instance
-    const char* currentLetterPattern; // Pointer to the Morse pattern for the current letter
+    const char* currentLetterPattern = ""; // Pointer to the Morse pattern for the current letter
     // Constructor
-    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentState(ROOT), currentLetterPattern(nullptr) {
+    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentLetterPattern(nullptr) {
         // Initialize the visualizer
     }
     void begin();
     void lookupMorsePattern(char letter);
-    void setState(State state, uint32_t Time);
-
-    bool handle(const Event& event);
 
     void startMorsePattern(uint32_t Time);
     bool updateMorsePixel(uint32_t newTime) ;
     void setOnlyLetter(char letter) ;
-
+    HandleResult_t handle(Event& event);
 };

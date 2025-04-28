@@ -359,8 +359,7 @@ bool serialbutton(int button) {
 
 uint32_t lastButtonScan;
 
-// Replace EventType and its usage with the Event tagged union structure
-// Update the loop function to use the Event structure
+// Update the loop function to handle the new HandleResult structure
 void loop() {
     uint32_t now = millis();
     if (now > lastButtonScan + 100) {
@@ -392,7 +391,10 @@ void loop() {
 
                 event.data.buttonData.buttonTime = now - buttonDownTimes[i];
                 buttonDownTimes[i] = now;
-                professor->handle(event);
+                HandleResult result = professor->handle(event);
+                if (result.type == HandleResult::TRANSITION) {
+                    professor->setState(result.data.nextState, now);
+                }
             }
         }
 
@@ -404,5 +406,8 @@ void loop() {
 
     Event tickEvent(Event::TICK);
     tickEvent.data.tickData = {now};
-    professor->handle(tickEvent);
+    HandleResult result = professor->handle(tickEvent);
+    if (result.type == HandleResult::TRANSITION) {
+        professor->setState(result.data.nextState, now);
+    }
 }
