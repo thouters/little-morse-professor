@@ -1,11 +1,11 @@
 #include "professor.h"
 #include "morsetable.h"
+#include <string.h>
 
 #ifndef ARDUINO
 // long live printf debugging ^_^
 #include <termios.h>
 #include <unistd.h>
-#include <string.h>
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -13,7 +13,7 @@ using std::endl;
 
 void MorseLittleProfessor::begin() {
     showState.begin(*this);
-    quizState.begin(*this);
+    recogniseState.begin(*this);
     currentState = this;
     Event startEvent(Event::HSM_START);
     dispatch(startEvent);
@@ -38,10 +38,9 @@ HandleResult_t MorseLittleProfessor::handle(Event& event) {
 }
 
 // Method to look up the Morse pattern for the current letter
-void MorseLittleProfessor::lookupMorsePattern(char letter) {
+const char * MorseLittleProfessor::lookupMorsePattern(char letter) {
     if (letter < 'A' || letter > 'Z') {
-        currentLetterPattern = nullptr;
-        return;
+        return nullptr;
     }
 
     // Calculate the index in the Morse table
@@ -56,9 +55,9 @@ void MorseLittleProfessor::lookupMorsePattern(char letter) {
         buffer[i] = 0;
     }
     strcpy_P(buffer, morsePtr);
-    currentLetterPattern = buffer; // skip the character's ascii value at index 0
+    return buffer; // skip the character's ascii value at index 0
 #else
-    currentLetterPattern = (const char*)morsecode_table[index];
+    return (const char*)morsecode_table[index];
 #endif
 }
 
@@ -125,7 +124,7 @@ void MorseLittleProfessor::setOnlyLetter(char letter) {
 void ShowState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
     morseLittleProfessor = &pMorseLittleProfessor;
 }
-void QuizState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
+void RecogniseState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
     morseLittleProfessor = &pMorseLittleProfessor;
 }
 
@@ -136,7 +135,7 @@ HandleResult_t ShowState::handle(Event& event) {
             currentLetter = 'A';
             // Notify the visualizer of the state change
             morseLittleProfessor->visualizer.setState(SHOW);
-            morseLittleProfessor->lookupMorsePattern(currentLetter);
+            morseLittleProfessor->currentLetterPattern = morseLittleProfessor->lookupMorsePattern(currentLetter);
 
             morseLittleProfessor->visualizer.setMorsePattern(morseLittleProfessor->currentLetterPattern);
             morseLittleProfessor->startMorsePattern(event.data.tickData.time);
@@ -147,7 +146,7 @@ HandleResult_t ShowState::handle(Event& event) {
         case Event::TICK:
             if (morseLittleProfessor->currentLetterPattern  && morseLittleProfessor->updateMorsePixel(event.data.tickData.time)) {
                 // pattern done, repeat it
-                morseLittleProfessor->lookupMorsePattern(currentLetter); // Get the Morse pattern for the current letter
+                morseLittleProfessor->currentLetterPattern  = morseLittleProfessor->lookupMorsePattern(currentLetter); // Get the Morse pattern for the current letter
                 morseLittleProfessor->visualizer.setMorsePattern(morseLittleProfessor->currentLetterPattern);
                 morseLittleProfessor->startMorsePattern(event.data.tickData.time);
             }
@@ -161,13 +160,13 @@ HandleResult_t ShowState::handle(Event& event) {
                     if (currentLetter > 'Z') {
                         currentLetter = 'A';
                     }
-                    morseLittleProfessor->lookupMorsePattern(currentLetter); // Update the Morse pattern for the new letter
+                    morseLittleProfessor->currentLetterPattern = morseLittleProfessor->lookupMorsePattern(currentLetter); // Update the Morse pattern for the new letter
                     morseLittleProfessor->visualizer.setMorsePattern(morseLittleProfessor->currentLetterPattern);
                     morseLittleProfessor->startMorsePattern(event.data.buttonData.time);
                     morseLittleProfessor->setOnlyLetter(currentLetter);
                     return HandleResult::handled();
-                case BUTTON4:
-                    return HandleResult::transition(&morseLittleProfessor->quizState);
+                case BUTTON_MODE_SELECT:
+                    return HandleResult::transition(&morseLittleProfessor->recogniseState);
                 case BUTTON2:
                     break;
                 case BUTTON3:
@@ -206,20 +205,131 @@ HandleResult_t Playback::handle(Event& event) {
 HandleResult_t Recognise::handle(Event& event) {
 }
 #endif
-// this will become the parent state of the Quiz* states 
-HandleResult_t QuizState::handle(Event& event) {
+
+HandleResult_t RecogniseState::handle(Event& event) {
     switch (event.type) {
         case Event::ENTER:
             morseLittleProfessor->visualizer.setState(QUIZ);
+            lastButtonPressTime = event.data.buttonData.time;
+            markCounter = 0;
+
+            memset(markTimes, 0, sizeof(markTimes)); // Clear the mark times
+            memset(spaceTimes, 0, sizeof(spaceTimes)); // Clear the space times
+            morsePattern[0] = '\0'; // Initialize the morse pattern
+            morseLittleProfessor->visualizer.setMorsePattern(morsePattern); 
+            morseLittleProfessor->visualizer.setMorsePixel(false, 0); // Turn off the pixel
+            morseLittleProfessor->visualizer.setLetter(' ', false); // Clear the letter display
+            morseLittleProfessor->setOnlyLetter(' '); // Clear the letter display   
+            morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
+
             return HandleResult::handled();
+        case Event::TICK:
+            morseLittleProfessor->visualizer.renderState(event.data.tickData.time);
+            if (event.data.tickData.time - lastButtonPressTime > 5000) {
+                // Timeout, reset
+                return HandleResult::transition(this);
+            }
+            break;
         case Event::BUTTONDOWN:
             switch (event.data.buttonData.buttonId) {
-                case BUTTON4:
+                case BUTTON_SELECT_LETTER:
+                    // reset
+                    return HandleResult::transition(this);
+                case BUTTON_MORSE_INPUT: 
+                    // Record the pulse
+                    uint32_t uptime = event.data.buttonData.time - lastButtonPressTime;
+                    spaceTimes[markCounter] = uptime;
+                    lastButtonPressTime = event.data.buttonData.time;
+                    evaluateInput();
+                    morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
+                    return HandleResult::handled();
+                    
+                break;
+                case BUTTON_MODE_SELECT:
                     return HandleResult::transition(&morseLittleProfessor->showState);
                 break;
             }
             break;
+        case Event::BUTTONUP: {
+            switch (event.data.buttonData.buttonId) {
+                case BUTTON_MORSE_INPUT: 
+                    // Record the pulse
+                    uint32_t downtime = event.data.buttonData.time - lastButtonPressTime;
+                    markTimes[markCounter] = downtime;
+                    markCounter++;
+                    lastButtonPressTime = event.data.buttonData.time;
+                    evaluateInput();
+                    morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
+                    return HandleResult::handled();
+            }
+            break;
+        }
     }
     return HandleResult::parent();
 }
 
+void RecogniseState::evaluateInput(void)
+{
+    // go over the recorded pulses and check if they match the morse code table
+    // start by converting the pulse lengths to dit and dah
+    // first sort the length of the markTimes and recognise markTime of the dit pulses
+    // which are 1/3rd of the length of a dah:
+
+    uint32_t sortedMarks[32];
+    // bubble sort the markTimes:
+    memcpy(sortedMarks, markTimes, sizeof(sortedMarks));
+
+    for (int i = 0; i < markCounter; i++) {
+        for (int j = 0; j < markCounter - 1; j++) {
+            if (sortedMarks[j] > sortedMarks[j + 1]) {
+                uint32_t temp = sortedMarks[j];
+                sortedMarks[j] = sortedMarks[j + 1];
+                sortedMarks[j + 1] = temp;
+            }
+        }
+    }
+    // now we calculate an average of the elements in the array 
+    // and when we hit an entry that is 1/3rd of the average, we can assume that we are
+    // at the boundary between dahs and dits
+    uint32_t dahAverage = 0;
+    uint32_t dahAccumulator = 0;
+    uint32_t ditAverage = 0;
+    uint32_t ditAccumulator = 0;
+    uint32_t nbrOfDahs = 0;
+    for (int i = 0; i < markCounter; i++) {
+        if (i > 0 && sortedMarks[i] < dahAverage / 3) {
+            // we hit the dits
+            // we save the average of the previous marks as dahAverage and calculate the average of the
+            // remaining marks as ditAverage.
+            ditAverage += sortedMarks[i];
+            ditAverage = ditAccumulator / (i-nbrOfDahs + 1);
+        } else {
+            dahAccumulator += sortedMarks[i];
+            dahAverage = dahAccumulator / (i + 1);
+            nbrOfDahs++;
+        }
+    }
+    // convert the marks to dit and dahs
+    for (int i = 0; i < markCounter; i++) {
+        if (markTimes[i] < dahAverage / 3) {
+            // this is a dit
+            morsePattern[i] = '.';
+        } else {
+            morsePattern[i] = '-';
+        }
+    }
+    morsePattern[markCounter] = '\0';
+
+    // now we have the morse pattern, we can check if it is in the morse code table
+    for (char letter= 'A'; letter < 'Z'+1; letter++) {
+        const char *letterPattern = morseLittleProfessor->lookupMorsePattern(letter);
+        if (strcmp(morsePattern, morsePattern) == 0) 
+        {
+            morseLittleProfessor->visualizer.setLetter(letter, true);
+        }
+        else 
+        {
+            morseLittleProfessor->visualizer.setLetter(letter, false);
+        }
+    }
+}

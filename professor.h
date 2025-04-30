@@ -60,13 +60,18 @@ public:
     HandleResult_t handle(Event& event);
 };
 
-class QuizState: public HsmState {
+class RecogniseState: public HsmState {
 private:
-    char currentLetter;          // Current letter being processed
+    uint32_t markCounter = 0;
+    uint32_t markTimes[32];     // Array to store the down times of button presses
+    uint32_t spaceTimes[32];     // Array to store the up times of button releases 
+    uint32_t lastButtonPressTime = 0; // Time of the last button press: to autoreset
+    char morsePattern[32]; // Array to store the Morse pattern
     MorseLittleProfessor* morseLittleProfessor = nullptr;
 public: 
     void begin(MorseLittleProfessor& pMorseLittleProfessor);
     HandleResult_t handle(Event& event);
+    void evaluateInput(void);
 };
 
 // both the Hsm rootstate and statemachine at once.
@@ -78,7 +83,7 @@ private:
 
 public:
     ShowState showState; 
-    QuizState quizState; 
+    RecogniseState recogniseState; 
     StateVisualizer& visualizer; // Reference to the StateVisualizer instance
     const char* currentLetterPattern = ""; // Pointer to the Morse pattern for the current letter
     // Constructor
@@ -86,7 +91,7 @@ public:
         // Initialize the visualizer
     }
     void begin();
-    void lookupMorsePattern(char letter);
+    const char * lookupMorsePattern(char letter);
 
     void startMorsePattern(uint32_t Time);
     bool updateMorsePixel(uint32_t newTime) ;

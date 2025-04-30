@@ -4,7 +4,13 @@ void Hsm::dispatch(Event& event) {
 
     if (currentState) {
         HandleResult result = currentState->handle(event);
-        if (result.type == HandleResult::TRANSITION) {
+        // switch instead of if:
+        if (result.type == HandleResult::HANDLED) {
+            return; // Event handled, no further action needed
+        } else if (result.type == HandleResult::PARENT) {
+//            result = currentState->parentState()->handle(event);
+            return; // Event not handled, but no transition needed
+        } else if (result.type == HandleResult::TRANSITION) {
             Event exitEvent(Event::EXIT);
             currentState->handle(exitEvent);
             currentState = result.data.nextState;
