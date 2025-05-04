@@ -124,6 +124,7 @@ public:
     // Render the current state on the LED matrix
     void renderState(uint32_t Time) override {
 
+        // TODO: optimize access by directly accessing AVR PORTC
         activateColumn(0xff); // clear all columns
         // layout of ROW 1-4 is to show all letters from the letters array
         digitalWrite(ROW_GREEN_1, letters[currentColumn+0*NUMBER_OF_COLUMNS] ? HIGH : LOW);
@@ -159,9 +160,6 @@ public:
                 case RECOGNISE:
                     digitalWrite(ROW_GREEN_5, currentColumn == 6?HIGH:LOW);
                     break;
-                case QUIZ:
-                    digitalWrite(ROW_GREEN_5, currentColumn == 7?HIGH:LOW);
-                    break;
             }
             digitalWrite(ROW_RED_5, LOW);
         }
@@ -171,11 +169,11 @@ public:
 
     // Override setLetter to update the enabled state of a letter
     void setLetter(char letter, bool enabled) override {
-        // Ensure the letter is uppercase
+        // Convert to index
         if (letter >= 'a' && letter <= 'z') {
-            letter -= 'a'; // Convert to uppercase index
+            letter -= 'a'; 
         } else if (letter >= 'A' && letter <= 'Z') {
-            letter -= 'A'; // Convert to index
+            letter -= 'A';
         } else {
             Serial.println("Invalid letter. Must be A-Z or a-z.");
             return;

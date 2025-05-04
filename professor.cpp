@@ -209,23 +209,22 @@ HandleResult_t Recognise::handle(Event& event) {
 HandleResult_t RecogniseState::handle(Event& event) {
     switch (event.type) {
         case Event::ENTER:
-            morseLittleProfessor->visualizer.setState(QUIZ);
+            morseLittleProfessor->visualizer.setState(RECOGNISE);
             lastButtonPressTime = event.data.buttonData.time;
             markCounter = 0;
 
-            memset(markTimes, 0, sizeof(markTimes)); // Clear the mark times
-            memset(spaceTimes, 0, sizeof(spaceTimes)); // Clear the space times
-            morsePattern[0] = '\0'; // Initialize the morse pattern
+            memset(markTimes, 0, sizeof(markTimes));
+            memset(spaceTimes, 0, sizeof(spaceTimes));
+            memset(morsePattern, 0, sizeof(morsePattern)); 
             morseLittleProfessor->visualizer.setMorsePattern(morsePattern); 
-            morseLittleProfessor->visualizer.setMorsePixel(false, 0); // Turn off the pixel
-            morseLittleProfessor->visualizer.setLetter(' ', false); // Clear the letter display
+            morseLittleProfessor->visualizer.setMorsePixel(false, 0); // Turn off dit/dah highlight
             morseLittleProfessor->setOnlyLetter(' '); // Clear the letter display   
             morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
 
             return HandleResult::handled();
         case Event::TICK:
             morseLittleProfessor->visualizer.renderState(event.data.tickData.time);
-            if (event.data.tickData.time - lastButtonPressTime > 5000) {
+            if (event.data.tickData.time - lastButtonPressTime > 3000) {
                 // Timeout, reset
                 return HandleResult::transition(this);
             }
@@ -268,15 +267,25 @@ HandleResult_t RecogniseState::handle(Event& event) {
     return HandleResult::parent();
 }
 
+// go over the recorded pulses and check if they match the morse code table
 void RecogniseState::evaluateInput(void)
 {
-    // go over the recorded pulses and check if they match the morse code table
-    // start by converting the pulse lengths to dit and dah
-    // first sort the length of the markTimes and recognise markTime of the dit pulses
-    // which are 1/3rd of the length of a dah:
+    // calculate the average of the spaceTimes
+    uint32_t spaceAverage = 0;
+    if (markCounter >= 1) {
+        uint32_t spaceAccumulator = 0;
+        for (int i = 1;  // skip the leading space
+                i < markCounter; i++) {
+            spaceAccumulator += spaceTimes[i];
+        }
+        spaceAverage = spaceAccumulator / markCounter;
+    } else {
+        // single mark pattern - use a default
+        spaceAverage = 900; //ms
+    }
 
+    // first bubble sort the length of the markTimes
     uint32_t sortedMarks[32];
-    // bubble sort the markTimes:
     memcpy(sortedMarks, markTimes, sizeof(sortedMarks));
 
     for (int i = 0; i < markCounter; i++) {
@@ -288,30 +297,36 @@ void RecogniseState::evaluateInput(void)
             }
         }
     }
-    // now we calculate an average of the elements in the array 
-    // and when we hit an entry that is 1/3rd of the average, we can assume that we are
-    // at the boundary between dahs and dits
+
+    // Converte the pulse lengths to dit and dah
+
+    // recognise markTime of the dit pulses which are 1/3rd of the length of a dah:
+
+    #define APROXIMATELY(expected,actual,margin) (\
+        (expected - margin < actual) && (expected + margin > actual) \
+    )
+
     uint32_t dahAverage = 0;
     uint32_t dahAccumulator = 0;
-    uint32_t ditAverage = 0;
+    uint32_t ditAverage = spaceAverage;
     uint32_t ditAccumulator = 0;
     uint32_t nbrOfDahs = 0;
-    for (int i = 0; i < markCounter; i++) {
-        if (i > 0 && sortedMarks[i] < dahAverage / 3) {
-            // we hit the dits
-            // we save the average of the previous marks as dahAverage and calculate the average of the
-            // remaining marks as ditAverage.
-            ditAverage += sortedMarks[i];
-            ditAverage = ditAccumulator / (i-nbrOfDahs + 1);
-        } else {
-            dahAccumulator += sortedMarks[i];
-            dahAverage = dahAccumulator / (i + 1);
-            nbrOfDahs++;
-        }
+    int i = 0;
+    for (; (!APROXIMATELY(spaceAverage,sortedMarks[i],100)) && i < markCounter; i++) {
+        dahAccumulator += sortedMarks[i];
+        dahAverage = dahAccumulator / (i + 1);
+        nbrOfDahs++;
     }
+    // if we hit an entry that is aprox the spaceTime, we can assume that we are at the boundary between dahs and dits
+    for (;  i < markCounter; i++) {
+        // calculate the average of the remaining marks as ditAverage.
+        ditAverage += sortedMarks[i];
+        ditAverage = ditAccumulator / (i-nbrOfDahs + 1);
+    } 
+
     // convert the marks to dit and dahs
     for (int i = 0; i < markCounter; i++) {
-        if (markTimes[i] < dahAverage / 3) {
+        if (APROXIMATELY(spaceAverage,markTimes[i],100)) {
             // this is a dit
             morsePattern[i] = '.';
         } else {
@@ -323,12 +338,9 @@ void RecogniseState::evaluateInput(void)
     // now we have the morse pattern, we can check if it is in the morse code table
     for (char letter= 'A'; letter < 'Z'+1; letter++) {
         const char *letterPattern = morseLittleProfessor->lookupMorsePattern(letter);
-        if (strcmp(morsePattern, morsePattern) == 0) 
-        {
+        if (strcmp(morsePattern, letterPattern) == 0) {
             morseLittleProfessor->visualizer.setLetter(letter, true);
-        }
-        else 
-        {
+        } else {
             morseLittleProfessor->visualizer.setLetter(letter, false);
         }
     }
