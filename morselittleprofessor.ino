@@ -141,10 +141,17 @@ public:
         // last row
         if (currentColumn < 4) {
             if (morsePattern) {
-                if (symbolIndex >=0 && morsePixelState && currentColumn == symbolIndex) {
-                    digitalWrite(ROW_GREEN_5, LOW);
-                    digitalWrite(ROW_RED_5, LOW);
+                if (morsePixelState && currentColumn == symbolIndex) {
+                    if (morsePattern[currentColumn] != '\0') {
+                        digitalWrite(ROW_GREEN_5, LOW);
+                        digitalWrite(ROW_RED_5, LOW);
+                    } else {
+                        // cursor in enter mode
+                        digitalWrite(ROW_GREEN_5, HIGH);
+                        digitalWrite(ROW_RED_5, HIGH);
+                    }
                 } else {
+                    
                     digitalWrite(ROW_GREEN_5, morsePattern[currentColumn] == '-'? HIGH: LOW);
                     digitalWrite(ROW_RED_5, morsePattern[currentColumn] == '.'? HIGH: LOW);
                 }

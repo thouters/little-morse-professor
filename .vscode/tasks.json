@@ -1,0 +1,49 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Linux Build",
+        "type": "shell",
+        "command": "make",
+        "args": [ ],
+        "group": {
+          "kind": "build",
+          "isDefault": false
+        },
+        "problemMatcher": ["$gcc"]
+      },
+      {
+        "label": "Atmega88 upload",
+        "type": "shell",
+        "command": "pio run -t upload",
+        "args": [ ],
+        "group": {
+          "kind": "build",
+          "isDefault": false
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Arduino Uno Build",
+        "type": "shell",
+        "command": "pio run -e arduino",
+        "args": [ ],
+        "group": {
+          "kind": "build",
+          "isDefault": false
+        },
+        "problemMatcher": ["$gcc"]
+      },
+      {
+        "label": "Atmega88 Build",
+        "type": "shell",
+        "command": "pio run",
+        "args": [ ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": ["$gcc"]
+      }
+    ]
+  }

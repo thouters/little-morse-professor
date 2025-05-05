@@ -11,10 +11,10 @@ void Hsm::dispatch(Event& event) {
 //            result = currentState->parentState()->handle(event);
             return; // Event not handled, but no transition needed
         } else if (result.type == HandleResult::TRANSITION) {
-            Event exitEvent(Event::EXIT);
+            Event exitEvent = Event::exit(event.data.tickData.time);
             currentState->handle(exitEvent);
             currentState = result.data.nextState;
-            Event enterEvent(Event::ENTER);
+            Event enterEvent = Event::enter(event.data.tickData.time);
             currentState->handle(enterEvent);
         }
     }

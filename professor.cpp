@@ -210,19 +210,24 @@ HandleResult_t RecogniseState::handle(Event& event) {
     switch (event.type) {
         case Event::ENTER:
             morseLittleProfessor->visualizer.setState(RECOGNISE);
-            lastButtonPressTime = event.data.buttonData.time;
+            lastButtonPressTime = event.data.tickData.time;
             markCounter = 0;
+            cursorState = false;
+            nextCursorUpdate = event.data.tickData.time;
 
             memset(markTimes, 0, sizeof(markTimes));
             memset(spaceTimes, 0, sizeof(spaceTimes));
             memset(morsePattern, 0, sizeof(morsePattern)); 
             morseLittleProfessor->visualizer.setMorsePattern(morsePattern); 
-            morseLittleProfessor->visualizer.setMorsePixel(false, 0); // Turn off dit/dah highlight
             morseLittleProfessor->setOnlyLetter(' '); // Clear the letter display   
-            morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
-
+            morseLittleProfessor->visualizer.renderState(event.data.tickData.time);
             return HandleResult::handled();
         case Event::TICK:
+            if (event.data.tickData.time > nextCursorUpdate) {
+                cursorState = cursorState ^ true;
+                morseLittleProfessor->visualizer.setMorsePixel(cursorState, markCounter);
+                nextCursorUpdate = event.data.tickData.time + 1000;
+            }
             morseLittleProfessor->visualizer.renderState(event.data.tickData.time);
             if (event.data.tickData.time - lastButtonPressTime > 3000) {
                 // Timeout, reset
@@ -255,9 +260,12 @@ HandleResult_t RecogniseState::handle(Event& event) {
                     // Record the pulse
                     uint32_t downtime = event.data.buttonData.time - lastButtonPressTime;
                     markTimes[markCounter] = downtime;
+                    morseLittleProfessor->visualizer.setMorsePixel(false, markCounter);
                     markCounter++;
                     lastButtonPressTime = event.data.buttonData.time;
                     evaluateInput();
+                    cursorState = false;
+                    nextCursorUpdate = event.data.buttonData.time;
                     morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
                     return HandleResult::handled();
             }
@@ -311,12 +319,22 @@ void RecogniseState::evaluateInput(void)
     uint32_t ditAverage = spaceAverage;
     uint32_t ditAccumulator = 0;
     uint32_t nbrOfDahs = 0;
-    int i = 0;
-    for (; (!APROXIMATELY(spaceAverage,sortedMarks[i],100)) && i < markCounter; i++) {
+    int i;
+    for (i=0; i < markCounter; i++) {
+        if (APROXIMATELY(spaceAverage,sortedMarks[i],100)) {
+            break;
+        }
         dahAccumulator += sortedMarks[i];
         dahAverage = dahAccumulator / (i + 1);
         nbrOfDahs++;
+
+        if ((i + 1) < markCounter) {
+            if (APROXIMATELY(dahAverage/3,sortedMarks[i+1],200)) {
+                break;
+            }
+        }
     }
+
     // if we hit an entry that is aprox the spaceTime, we can assume that we are at the boundary between dahs and dits
     for (;  i < markCounter; i++) {
         // calculate the average of the remaining marks as ditAverage.
@@ -326,7 +344,7 @@ void RecogniseState::evaluateInput(void)
 
     // convert the marks to dit and dahs
     for (int i = 0; i < markCounter; i++) {
-        if (APROXIMATELY(spaceAverage,markTimes[i],100)) {
+        if (APROXIMATELY(ditAverage,markTimes[i],100)) {
             // this is a dit
             morsePattern[i] = '.';
         } else {

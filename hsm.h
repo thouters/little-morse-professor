@@ -36,6 +36,17 @@ struct Event {
         ~Data() {} // Destructor
     } data;
     Event(Type t) : type(t) {}
+    static Event enter(uint32_t time) {
+        Event event(ENTER);
+        event.data.tickData.time = time;
+        return event;
+    }
+    static Event exit(uint32_t time) {
+        Event event(EXIT);
+        event.data.tickData.time = time;
+        return event;
+    }
+
 };
 typedef struct Event Event_t;
 

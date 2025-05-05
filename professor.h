@@ -66,6 +66,8 @@ private:
     uint32_t markTimes[32];     // Array to store the down times of button presses
     uint32_t spaceTimes[32];     // Array to store the up times of button releases 
     uint32_t lastButtonPressTime = 0; // Time of the last button press: to autoreset
+    uint32_t nextCursorUpdate = 0; 
+    bool cursorState = false; 
     char morsePattern[32]; // Array to store the Morse pattern
     MorseLittleProfessor* morseLittleProfessor = nullptr;
 public: 
