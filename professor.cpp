@@ -12,8 +12,6 @@ using std::endl;
 #endif
 
 void MorseLittleProfessor::begin() {
-    showState.begin(*this);
-    recogniseState.begin(*this);
     currentState = this;
     Event startEvent(Event::HSM_START);
     dispatch(startEvent);
@@ -121,14 +119,6 @@ void MorseLittleProfessor::setOnlyLetter(char letter) {
 
 
 
-void ShowState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
-    morseLittleProfessor = &pMorseLittleProfessor;
-}
-void RecogniseState::begin(MorseLittleProfessor& pMorseLittleProfessor) {
-    morseLittleProfessor = &pMorseLittleProfessor;
-}
-
-
 HandleResult_t ShowState::handle(Event& event) {
     switch (event.type) {
         case Event::ENTER:
@@ -226,7 +216,7 @@ HandleResult_t RecogniseState::handle(Event& event) {
             if (event.data.tickData.time > nextCursorUpdate) {
                 cursorState = cursorState ^ true;
                 morseLittleProfessor->visualizer.setMorsePixel(cursorState, markCounter);
-                nextCursorUpdate = event.data.tickData.time + 1000;
+                nextCursorUpdate = event.data.tickData.time + 500;
             }
             morseLittleProfessor->visualizer.renderState(event.data.tickData.time);
             if (event.data.tickData.time - lastButtonPressTime > 3000) {
@@ -239,7 +229,8 @@ HandleResult_t RecogniseState::handle(Event& event) {
                 case BUTTON_SELECT_LETTER:
                     // reset
                     return HandleResult::transition(this);
-                case BUTTON_MORSE_INPUT: 
+                    break;
+                case BUTTON_MORSE_INPUT:  {
                     // Record the pulse
                     uint32_t uptime = event.data.buttonData.time - lastButtonPressTime;
                     spaceTimes[markCounter] = uptime;
@@ -247,14 +238,14 @@ HandleResult_t RecogniseState::handle(Event& event) {
                     evaluateInput();
                     morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
                     return HandleResult::handled();
-                    
-                break;
+                    break;
+                }
                 case BUTTON_MODE_SELECT:
                     return HandleResult::transition(&morseLittleProfessor->showState);
-                break;
+                    break;
             }
             break;
-        case Event::BUTTONUP: {
+        case Event::BUTTONUP:
             switch (event.data.buttonData.buttonId) {
                 case BUTTON_MORSE_INPUT: 
                     // Record the pulse
@@ -268,9 +259,9 @@ HandleResult_t RecogniseState::handle(Event& event) {
                     nextCursorUpdate = event.data.buttonData.time;
                     morseLittleProfessor->visualizer.renderState(event.data.buttonData.time);
                     return HandleResult::handled();
+                    break;
             }
             break;
-        }
     }
     return HandleResult::parent();
 }

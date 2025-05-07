@@ -54,9 +54,10 @@ class MorseLittleProfessor;
 class ShowState: public HsmState {
 private:
     char currentLetter;          // Current letter being processed
-    MorseLittleProfessor* morseLittleProfessor = nullptr;
-public: 
-    void begin(MorseLittleProfessor& pMorseLittleProfessor);
+    MorseLittleProfessor* morseLittleProfessor; // Reference to MorseLittleProfessor
+public:
+    ShowState(MorseLittleProfessor* pMorseLittleProfessor, HsmState *parent)
+        : HsmState(parent), morseLittleProfessor(pMorseLittleProfessor) {}
     HandleResult_t handle(Event& event);
 };
 
@@ -64,14 +65,16 @@ class RecogniseState: public HsmState {
 private:
     uint32_t markCounter = 0;
     uint32_t markTimes[32];     // Array to store the down times of button presses
-    uint32_t spaceTimes[32];     // Array to store the up times of button releases 
+    uint32_t spaceTimes[32];     // Array to store the up times of button releases
     uint32_t lastButtonPressTime = 0; // Time of the last button press: to autoreset
-    uint32_t nextCursorUpdate = 0; 
-    bool cursorState = false; 
+    uint32_t nextCursorUpdate = 0;
+    bool cursorState = false;
     char morsePattern[32]; // Array to store the Morse pattern
     MorseLittleProfessor* morseLittleProfessor = nullptr;
-public: 
-    void begin(MorseLittleProfessor& pMorseLittleProfessor);
+public:
+
+    RecogniseState(MorseLittleProfessor* pMorseLittleProfessor, HsmState *parent)
+        : HsmState(parent), morseLittleProfessor(pMorseLittleProfessor) {}
     HandleResult_t handle(Event& event);
     void evaluateInput(void);
 };
@@ -84,12 +87,12 @@ private:
     int currentPatternIndex = 0; // Index of the current symbol in the Morse pattern
 
 public:
-    ShowState showState; 
-    RecogniseState recogniseState; 
+    ShowState showState;
+    RecogniseState recogniseState;
     StateVisualizer& visualizer; // Reference to the StateVisualizer instance
     const char* currentLetterPattern = ""; // Pointer to the Morse pattern for the current letter
     // Constructor
-    MorseLittleProfessor(StateVisualizer& vis) : visualizer(vis), currentLetterPattern(nullptr) {
+    MorseLittleProfessor(StateVisualizer& vis) : HsmState(this), visualizer(vis), showState(this, this), recogniseState(this, this), currentLetterPattern(nullptr) {
         // Initialize the visualizer
     }
     void begin();

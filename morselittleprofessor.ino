@@ -56,7 +56,7 @@ private:
     bool letters[NUMBER_OF_LETTERS];   // Array to store the enabled state of each letter (A-Z)
     bool morsePixelState; // Stores the current state of the Morse pixel (on or off)
     uint8_t currentColumn;
-    char *morsePattern; // Stores the current Morse pattern
+    const char *morsePattern; // Stores the current Morse pattern
     int symbolIndex;
     StateIndicator currentState; // Stores the current state (enum)
 

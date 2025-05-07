@@ -87,6 +87,8 @@ typedef struct HandleResult HandleResult_t;
 
 class HsmState {
 public:
+    HsmState *parentState; // Pointer to the parent state
+    HsmState(HsmState *parent = nullptr) : parentState(parent) {}
     virtual HandleResult_t handle(Event& event) = 0; // Pure virtual function
     virtual ~HsmState() = default; // Virtual destructor for proper cleanup
 };
